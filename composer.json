@@ -25,10 +25,10 @@
     },
     "autoload": {
         "psr-4": {
-            "HeimrichHannot\\FormFieldsCollectionBundle\\": "src/"
+            "Koertho\\AdvancedRepeatingEventsBundle\\": "src/"
         }
     },
     "extra": {
-        "contao-manager-plugin": "HeimrichHannot\\FormFieldsCollectionBundle\\ContaoManager\\Plugin"
+        "contao-manager-plugin": "Koertho\\AdvancedRepeatingEventsBundle\\Plugin"
     }
 }
