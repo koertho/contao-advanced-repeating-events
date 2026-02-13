@@ -1,0 +1,36 @@
+recurring:
+  interval:
+    days: "{count, plural, one {every day} other {every # days}}"
+    weeks: "{count, plural, one {every week} other {every # weeks}}"
+    months: "{count, plural, one {every month} other {every # months}}"
+    years: "{count, plural, one {every year} other {every # years}}"
+  until:
+    date: "until {date}"
+  message:
+    active: "The event is repeated {repeat}{until}. The next event will take place on <time datetime=\"{start_iso}\">{start_label}</time>."
+    ended: "The event was repeated {repeat}{until}."
+  repeat:
+    months:
+      dayOfWeek:
+        single: "every {pattern}"
+  pattern:
+    weeks: "on {days}"
+    months:
+      dayOfMonth: "day {day} of the month"
+      dayOfWeek: "{ordinal} {weekday} of the month"
+  ordinal:
+    "1": "first"
+    "2": "second"
+    "3": "third"
+    "4": "fourth"
+    "5": "fifth"
+  list:
+    and: "and"
+  weekday:
+    monday: "Monday"
+    tuesday: "Tuesday"
+    wednesday: "Wednesday"
+    thursday: "Thursday"
+    friday: "Friday"
+    saturday: "Saturday"
+    sunday: "Sunday"

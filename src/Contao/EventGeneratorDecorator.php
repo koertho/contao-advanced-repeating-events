@@ -16,13 +16,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 
 class EventGeneratorDecorator extends CalendarEventsGenerator
 {
-    private ?int $recurrenceLimit = null;
-    private \DateTimeInterface $rangeStart;
-    private \DateTimeInterface $rangeEnd;
-    /**
-     * @var true
-     */
-    private bool $isGetAllEvents = false;
+    private array $getAllEventsCalled;
 
     public function __construct(
         private readonly ContaoFramework     $contaoFramework,
@@ -37,21 +31,24 @@ class EventGeneratorDecorator extends CalendarEventsGenerator
 
     public function getAllEvents(array $calendars, \DateTimeInterface $rangeStart, \DateTimeInterface $rangeEnd, ?bool $featured = null, bool $noSpan = false, ?int $recurrenceLimit = null, ?Module $module = null): array
     {
-        $this->isGetAllEvents = true;
-        $this->recurrenceLimit = $recurrenceLimit;
-        $this->rangeStart = $rangeStart;
-        $this->rangeEnd = $rangeEnd;
+        $cacheKey = $rangeEnd->getTimestamp() . '_' . (int)$noSpan;
+        $this->getAllEventsCalled[$cacheKey] = [
+            'rangeStart' => $rangeStart,
+            'rangeEnd' => $rangeEnd,
+            'noSpan' => $noSpan,
+            'recurrenceLimit' => $recurrenceLimit,
+        ];
         $event = parent::getAllEvents(...func_get_args());
-        $this->isGetAllEvents = false;
+        unset($this->getAllEventsCalled[$cacheKey]);
         return $event;
     }
 
     /**
      * @param \Koertho\AdvancedRepeatingEventsBundle\Model\CalendarEventsModel $eventModel
      */
-    public function addEvent(array &$events, CalendarEventsModel $eventModel, int $start, int $end, int $rangeEnd, int $calendar, bool $noSpan): void
+    public function addEvent(array &$events, CalendarEventsModel $eventModel, int $start, int $end, int $rangeEnd, int $calendar, bool $noSpan, bool $recursion = false): void
     {
-        if (!$eventModel->recurring) {
+        if (!$eventModel->recurring && !$eventModel->areRecurring) {
             parent::addEvent($events, $eventModel, $start, $end, $rangeEnd, $calendar, $noSpan);
             return;
         }
@@ -62,7 +59,6 @@ class EventGeneratorDecorator extends CalendarEventsGenerator
         $this->addRecurringInformation($eventData, $eventModel, $start, $end);
 
         $events[$key][$start][] = $eventData;
-
 
         if (!$noSpan) {
             $timestamp = $start;
@@ -79,7 +75,14 @@ class EventGeneratorDecorator extends CalendarEventsGenerator
             }
         }
 
-//        $this->applyRecurrences($events, $eventModel, $noSpan);
+        if ($recursion) {
+            return;
+        }
+
+        $repeatContext = $this->getAllEventsCalled[$rangeEnd . '_' . $noSpan] ?? null;
+        if (is_array($repeatContext)) {
+            $this->applyRecurrences($events, $eventModel, $repeatContext);
+        }
     }
 
     public function buildEventData(CalendarEventsModel $eventModel, int $start, int $end): array
@@ -112,13 +115,8 @@ class EventGeneratorDecorator extends CalendarEventsGenerator
     /**
      * @param \Koertho\AdvancedRepeatingEventsBundle\Model\CalendarEventsModel $eventModel
      */
-    private function applyRecurrences(array &$events, CalendarEventsModel $eventModel, int $calendar, bool $noSpan): void
+    private function applyRecurrences(array &$events, CalendarEventsModel $eventModel, array $repeatContext): void
     {
-        // run this only when getAllEvents is called since this is not needed when addEvent is called for a single event
-        if (!$this->isGetAllEvents) {
-            return;
-        }
-
         $repeat = [
             'unit' => $eventModel->repeatEachUnit,
             'value' => $eventModel->repeatEachValue,
@@ -128,17 +126,20 @@ class EventGeneratorDecorator extends CalendarEventsGenerator
             return;
         }
 
+        $rangeStart = $repeatContext['rangeStart'];
+        $rangeEnd = $repeatContext['rangeEnd'];
+        $noSpan = $repeatContext['noSpan'];
+        $recurrenceLimit = $repeatContext['recurrenceLimit'];
+
         $count = 0;
         $eventStartTime = (new \DateTime())->setTimestamp($eventModel->startTime);
         $eventEndTime = (new \DateTime())->setTimestamp($eventModel->endTime);
         $modifier = '+ ' . $repeat['value'] . ' ' . $repeat['unit'];
-        $rangeStart = $this->rangeStart;
-        $rangeEnd = $this->rangeEnd;
 
         while ($eventEndTime < $rangeEnd) {
             ++$count;
 
-            if (($eventModel->recurrences > 0 && $count > $eventModel->recurrences) || (null !== $this->recurrenceLimit && $count > $this->recurrenceLimit)) {
+            if (($eventModel->recurrences > 0 && $count > $eventModel->recurrences) || (null !== $recurrenceLimit && $count > $recurrenceLimit)) {
                 break;
             }
 
@@ -156,8 +157,9 @@ class EventGeneratorDecorator extends CalendarEventsGenerator
                 $eventStartTime->getTimestamp(),
                 $eventEndTime->getTimestamp(),
                 $rangeEnd->getTimestamp(),
-                $calendar,
-                $noSpan
+                $eventModel->pid,
+                $noSpan,
+                recursion: true
             );
         }
     }
@@ -171,46 +173,169 @@ class EventGeneratorDecorator extends CalendarEventsGenerator
             return;
         }
 
-        $range = [
-            'unit' => $eventModel->repeatEachUnit,
-            'value' => $eventModel->repeatEachValue,
-        ];
-        $recurring = '';
+        $domain = 'koertho_advanced_repeating_events';
+        $dateFormat = Date::getNumericDateFormat();
+        $startLabel = trim(($eventData['date'] ?? '') . ' ' . ($eventData['time'] ?? ''));
+
+        if ('' === $startLabel) {
+            $format = $eventModel->addTime ? Date::getNumericDatimFormat() : $dateFormat;
+            $startLabel = Date::parse($format, $start);
+        }
+
+        $repeat = $this->buildRepeatLabel($eventModel, $start, $domain);
         $until = '';
 
-
-        $formattedDate = $eventData['date'];
-        $formattedTime = $eventData['time'];
-
-        if (1 === $range['value']) {
-            $repeat = $this->translator->trans('MSC.cal_single_' . $range['unit'], [], 'contao_default');
-        } else {
-            $repeat = $this->translator->trans('MSC.cal_multiple_' . $range['unit'], [$range['value']], 'contao_default');
-        }
-
         if ($eventModel->recurrences > 0) {
-            $until = ' ' . $this->translator->trans('MSC.cal_until', [Date::parse($page->dateFormat, $eventModel->repeatEnd)], 'contao_default');
+            $until = $this->translator->trans(
+                'recurring.until.date',
+                ['date' => Date::parse($dateFormat, (int) $eventModel->repeatEnd)],
+                $domain
+            );
         }
 
-        if ($eventModel->recurrences > 0 && $end < time()) {
-            $recurring = $this->translator->trans('MSC.cal_repeat_ended', [$repeat, $until], 'contao_default');
-        } elseif ($eventModel->addTime) {
+        $untilPart = '' !== $until ? ', ' . $until : '';
+
+        if ($eventModel->recurrences > 0 && $end <= time()) {
             $recurring = $this->translator->trans(
-                'MSC.cal_repeat',
-                [$repeat, $until, date('Y-m-d\TH:i:sP', $start), $formattedDate . ($formattedTime ? ' ' . $formattedTime : '')],
-                'contao_default'
+                'recurring.message.ended',
+                [
+                    'repeat' => $repeat,
+                    'until' => $untilPart,
+                ],
+                $domain
             );
         } else {
             $recurring = $this->translator->trans(
-                'MSC.cal_repeat',
-                [$repeat, $until, date('Y-m-d', $start), $formattedDate],
-                'contao_default'
+                'recurring.message.active',
+                [
+                    'repeat' => $repeat,
+                    'until' => $untilPart,
+                    'start_iso' => date('Y-m-d\TH:i:sP', $start),
+                    'start_label' => $startLabel,
+                ],
+                $domain
             );
         }
-
 
         $eventData['recurring'] = $recurring;
         $eventData['until'] = $until;
     }
 
+    /**
+     * @param \Koertho\AdvancedRepeatingEventsBundle\Model\CalendarEventsModel $eventModel
+     */
+    private function buildRepeatLabel(CalendarEventsModel $eventModel, int $start, string $domain): string
+    {
+        $patternConfig = StringUtil::deserialize($eventModel->repeatPattern, true);
+        $patternType = isset($patternConfig[0]) && \is_string($patternConfig[0]) ? $patternConfig[0] : null;
+        $interval = $this->translator->trans(
+            'recurring.interval.' . $eventModel->repeatEachUnit,
+            ['count' => (int) $eventModel->repeatEachValue],
+            $domain
+        );
+        $pattern = $this->buildRepeatPatternLabel($eventModel, $start, $domain);
+
+        if ('' === $pattern) {
+            return $interval;
+        }
+
+        if ($eventModel->repeatEachUnit === 'months' && 'dayOfWeek' === $patternType && 1 === (int) $eventModel->repeatEachValue) {
+            return $this->translator->trans(
+                'recurring.repeat.months.dayOfWeek.single',
+                ['pattern' => $pattern],
+                $domain
+            );
+        }
+
+        return $interval . ' ' . $pattern;
+    }
+
+    /**
+     * @param \Koertho\AdvancedRepeatingEventsBundle\Model\CalendarEventsModel $eventModel
+     */
+    private function buildRepeatPatternLabel(CalendarEventsModel $eventModel, int $start, string $domain): string
+    {
+        $pattern = StringUtil::deserialize($eventModel->repeatPattern, true);
+
+        if ($eventModel->repeatEachUnit === 'weeks' && [] !== $pattern) {
+            $weekdayLabels = [];
+
+            foreach ($pattern as $weekday) {
+                if (!\is_string($weekday)) {
+                    continue;
+                }
+
+                $weekdayLabels[] = $this->translator->trans('recurring.weekday.' . $weekday, [], $domain);
+            }
+
+            if ([] === $weekdayLabels) {
+                return '';
+            }
+
+            return $this->translator->trans(
+                'recurring.pattern.weeks',
+                ['days' => $this->joinWithConjunction($weekdayLabels, $domain)],
+                $domain
+            );
+        }
+
+        if ($eventModel->repeatEachUnit === 'months' && isset($pattern[0]) && \is_string($pattern[0])) {
+            if ('dayOfMonth' === $pattern[0]) {
+                return $this->translator->trans(
+                    'recurring.pattern.months.dayOfMonth',
+                    ['day' => (int) date('j', $start)],
+                    $domain
+                );
+            }
+
+            if ('dayOfWeek' === $pattern[0]) {
+                $dayOfMonth = (int) date('j', $start);
+                $occurrence = max(1, min(5, (int) ceil($dayOfMonth / 7)));
+                $weekdayKey = match ((int) date('N', $start)) {
+                    1 => 'monday',
+                    2 => 'tuesday',
+                    3 => 'wednesday',
+                    4 => 'thursday',
+                    5 => 'friday',
+                    6 => 'saturday',
+                    default => 'sunday',
+                };
+
+                return $this->translator->trans(
+                    'recurring.pattern.months.dayOfWeek',
+                    [
+                        'ordinal' => $this->translator->trans('recurring.ordinal.' . $occurrence, [], $domain),
+                        'weekday' => $this->translator->trans('recurring.weekday.' . $weekdayKey, [], $domain),
+                    ],
+                    $domain
+                );
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * @param list<string> $items
+     */
+    private function joinWithConjunction(array $items, string $domain): string
+    {
+        $count = \count($items);
+
+        if (0 === $count) {
+            return '';
+        }
+
+        if (1 === $count) {
+            return $items[0];
+        }
+
+        if (2 === $count) {
+            return $items[0] . ' ' . $this->translator->trans('recurring.list.and', [], $domain) . ' ' . $items[1];
+        }
+
+        $last = array_pop($items);
+
+        return implode(', ', $items) . ' ' . $this->translator->trans('recurring.list.and', [], $domain) . ' ' . $last;
+    }
 }

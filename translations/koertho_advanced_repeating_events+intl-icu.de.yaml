@@ -1,0 +1,36 @@
+recurring:
+  interval:
+    days: "{count, plural, one {jeden Tag} other {alle # Tage}}"
+    weeks: "{count, plural, one {jede Woche} other {alle # Wochen}}"
+    months: "{count, plural, one {jeden Monat} other {alle # Monate}}"
+    years: "{count, plural, one {jedes Jahr} other {alle # Jahre}}"
+  until:
+    date: "bis zum {date}"
+  message:
+    active: "Der Termin wiederholt sich {repeat}{until} und findet das nächste Mal am <time datetime=\"{start_iso}\">{start_label}</time> statt."
+    ended: "Der Termin hatte sich {repeat}{until} wiederholt."
+  repeat:
+    months:
+      dayOfWeek:
+        single: "jeden {pattern}"
+  pattern:
+    weeks: "{days}"
+    months:
+      dayOfMonth: "{day}. des Monats"
+      dayOfWeek: "{ordinal} {weekday} im Monat"
+  ordinal:
+    "1": "ersten"
+    "2": "zweiten"
+    "3": "dritten"
+    "4": "vierten"
+    "5": "fünften"
+  list:
+    and: "und"
+  weekday:
+    monday: "Montag"
+    tuesday: "Dienstag"
+    wednesday: "Mittwoch"
+    thursday: "Donnerstag"
+    friday: "Freitag"
+    saturday: "Samstag"
+    sunday: "Sonntag"

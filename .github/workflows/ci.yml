@@ -8,7 +8,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: 8.1
+          php-version: 8.2
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -16,7 +16,7 @@ jobs:
       - name: Install the dependencies
         uses: ramsey/composer-install@v3
         with:
-          composer-options: "--no-plugins"
+          composer-options: "--no-plugins --prefer-lowest"
 
       - name: PHPStan
         run: vendor/bin/phpstan analyse -c phpstan.neon
@@ -27,7 +27,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: 8.1
+          php-version: 8.2
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,7 +35,7 @@ jobs:
       - name: Install the dependencies
         uses: ramsey/composer-install@v3
         with:
-          composer-options: "--no-plugins"
+          composer-options: "--no-plugins --prefer-lowest"
 
       - name: Rector
         run: vendor/bin/rector --dry-run --no-progress-bar
@@ -47,7 +47,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: 8.1
+          php-version: 8.2
           extensions: dom, fileinfo, filter, gd, hash, intl, json, mbstring, mysqli, pcre, pdo_mysql, zlib
           coverage: none
 
@@ -59,7 +59,7 @@ jobs:
       - name: Install the dependencies
         uses: ramsey/composer-install@v3
         with:
-          composer-options: "--no-plugins"
+          composer-options: "--no-plugins --prefer-lowest"
 
       - name: Run ECS
         run: vendor/bin/ecs check --no-progress-bar

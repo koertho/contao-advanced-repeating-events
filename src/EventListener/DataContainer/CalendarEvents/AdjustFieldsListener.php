@@ -17,7 +17,7 @@ class AdjustFieldsListener
         }
 
         $row = $dc->getCurrentRecord();
-        if (null === $row || 1 !== (int)$row['recurring']) {
+        if (null === $row || 1 !== (int)$row['areRecurring']) {
             return;
         }
 
@@ -49,7 +49,7 @@ class AdjustFieldsListener
         }
 
         $row = $dc->getCurrentRecord();
-        if (1 !== (int)$row['recurring']) {
+        if (1 !== (int)$row['areRecurring']) {
             return [];
         }
 
