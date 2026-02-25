@@ -16,7 +16,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 
 class EventGeneratorDecorator extends CalendarEventsGenerator
 {
-    private array $getAllEventsCalled;
+    private array $getAllEventsCalled = [];
 
     public function __construct(
         private readonly ContaoFramework     $contaoFramework,
@@ -31,7 +31,7 @@ class EventGeneratorDecorator extends CalendarEventsGenerator
 
     public function getAllEvents(array $calendars, \DateTimeInterface $rangeStart, \DateTimeInterface $rangeEnd, ?bool $featured = null, bool $noSpan = false, ?int $recurrenceLimit = null, ?Module $module = null): array
     {
-        $cacheKey = $rangeEnd->getTimestamp() . '_' . (int)$noSpan;
+        $cacheKey = $rangeEnd->getTimestamp() . '_' . (int) $noSpan;
         $this->getAllEventsCalled[$cacheKey] = [
             'rangeStart' => $rangeStart,
             'rangeEnd' => $rangeEnd,
@@ -79,7 +79,7 @@ class EventGeneratorDecorator extends CalendarEventsGenerator
             return;
         }
 
-        $repeatContext = $this->getAllEventsCalled[$rangeEnd . '_' . $noSpan] ?? null;
+        $repeatContext = $this->getAllEventsCalled[$rangeEnd . '_' . (int) $noSpan] ?? null;
         if (is_array($repeatContext)) {
             $this->applyRecurrences($events, $eventModel, $repeatContext);
         }
@@ -117,37 +117,214 @@ class EventGeneratorDecorator extends CalendarEventsGenerator
      */
     private function applyRecurrences(array &$events, CalendarEventsModel $eventModel, array $repeatContext): void
     {
-        $repeat = [
-            'unit' => $eventModel->repeatEachUnit,
-            'value' => $eventModel->repeatEachValue,
-        ];
+        $repeat = $this->resolveRepeat($eventModel);
 
-        if (!isset($repeat['unit'], $repeat['value']) || $repeat['value'] < 1) {
+        if (null === $repeat) {
             return;
         }
 
-        $rangeStart = $repeatContext['rangeStart'];
-        $rangeEnd = $repeatContext['rangeEnd'];
-        $noSpan = $repeatContext['noSpan'];
-        $recurrenceLimit = $repeatContext['recurrenceLimit'];
+        $rangeStart = $repeatContext['rangeStart'] ?? null;
+        $rangeEnd = $repeatContext['rangeEnd'] ?? null;
+        $noSpan = (bool) ($repeatContext['noSpan'] ?? false);
+        $recurrenceLimit = isset($repeatContext['recurrenceLimit']) ? (int) $repeatContext['recurrenceLimit'] : null;
 
-        $count = 0;
-        $eventStartTime = (new \DateTime())->setTimestamp($eventModel->startTime);
-        $eventEndTime = (new \DateTime())->setTimestamp($eventModel->endTime);
-        $modifier = '+ ' . $repeat['value'] . ' ' . $repeat['unit'];
+        if (!$rangeStart instanceof \DateTimeInterface || !$rangeEnd instanceof \DateTimeInterface) {
+            return;
+        }
 
-        while ($eventEndTime < $rangeEnd) {
-            ++$count;
+        $rangeStartTs = $rangeStart->getTimestamp();
+        $rangeEndTs = $rangeEnd->getTimestamp();
+        $repeatEndTs = (int) ($eventModel->repeatEnd ?? 0);
+        $maxEndTs = $repeatEndTs > 0 ? min($rangeEndTs, $repeatEndTs) : $rangeEndTs;
 
-            if (($eventModel->recurrences > 0 && $count > $eventModel->recurrences) || (null !== $recurrenceLimit && $count > $recurrenceLimit)) {
+        if ($maxEndTs < $rangeStartTs) {
+            return;
+        }
+
+        $baseStart = (new \DateTimeImmutable())->setTimestamp((int) $eventModel->startTime);
+        $duration = max(0, (int) $eventModel->endTime - (int) $eventModel->startTime);
+        $generated = 0;
+
+        $pattern = StringUtil::deserialize($eventModel->repeatPattern, true);
+        $patternType = isset($pattern[0]) && \is_string($pattern[0]) ? $pattern[0] : null;
+
+        if ('weeks' === $repeat['unit']) {
+            $weekdays = $this->resolveWeekdays($pattern);
+
+            if ([] !== $weekdays) {
+                $weekStart = $baseStart->setTime(0, 0, 0)->modify('monday this week');
+                $hour = (int) $baseStart->format('H');
+                $minute = (int) $baseStart->format('i');
+                $second = (int) $baseStart->format('s');
+
+                for ($cycle = 1; ; ++$cycle) {
+                    $cycleStart = $weekStart->modify('+' . ($cycle * $repeat['value']) . ' weeks');
+
+                    if (!$cycleStart instanceof \DateTimeInterface || $cycleStart->getTimestamp() > $maxEndTs + 7 * 86400) {
+                        break;
+                    }
+
+                    foreach ($weekdays as $weekday) {
+                        $candidateDate = $cycleStart->modify('+' . ($weekday - 1) . ' days');
+
+                        if (!$candidateDate instanceof \DateTimeInterface) {
+                            continue;
+                        }
+
+                        $candidateStart = $candidateDate->setTime($hour, $minute, $second);
+                        $candidateStartTs = $candidateStart->getTimestamp();
+                        $candidateEndTs = $candidateStartTs + $duration;
+
+                        if ($candidateStartTs <= (int) $eventModel->startTime) {
+                            continue;
+                        }
+
+                        if ($candidateEndTs > $maxEndTs) {
+                            continue;
+                        }
+
+                        if ($candidateStartTs > $rangeEndTs) {
+                            break 2;
+                        }
+
+                        if ($this->isRecurrenceLimitReached($generated, $eventModel, $recurrenceLimit)) {
+                            return;
+                        }
+
+                        ++$generated;
+
+                        if ($candidateEndTs < $rangeStartTs) {
+                            continue;
+                        }
+
+                        $this->addEvent(
+                            $events,
+                            $eventModel,
+                            $candidateStartTs,
+                            $candidateEndTs,
+                            $rangeEndTs,
+                            $eventModel->pid,
+                            $noSpan,
+                            recursion: true
+                        );
+                    }
+                }
+
+                return;
+            }
+        }
+
+        if ('months' === $repeat['unit'] && ('dayOfMonth' === $patternType || 'dayOfWeek' === $patternType)) {
+            for ($cycle = 1; ; ++$cycle) {
+                $baseMonth = $baseStart->modify('first day of this month midnight');
+
+                if (!$baseMonth instanceof \DateTimeInterface) {
+                    return;
+                }
+
+                $monthAnchor = $baseMonth->modify('+' . ($cycle * $repeat['value']) . ' months');
+
+                if (!$monthAnchor instanceof \DateTimeInterface || $monthAnchor->getTimestamp() > $maxEndTs + 31 * 86400) {
+                    break;
+                }
+
+                $candidateStart = null;
+
+                if ('dayOfMonth' === $patternType) {
+                    $day = (int) $baseStart->format('j');
+                    $year = (int) $monthAnchor->format('Y');
+                    $month = (int) $monthAnchor->format('n');
+                    $lastDay = cal_days_in_month(CAL_GREGORIAN, $month, $year);
+
+                    if ($day <= $lastDay) {
+                        $candidateStart = (new \DateTimeImmutable())
+                            ->setDate($year, $month, $day)
+                            ->setTime((int) $baseStart->format('H'), (int) $baseStart->format('i'), (int) $baseStart->format('s'));
+                    }
+                } elseif ('dayOfWeek' === $patternType) {
+                    $ordinal = max(1, min(5, (int) ceil((int) $baseStart->format('j') / 7)));
+                    $weekday = (int) $baseStart->format('N');
+                    $year = (int) $monthAnchor->format('Y');
+                    $month = (int) $monthAnchor->format('n');
+
+                    $firstOfMonth = (new \DateTimeImmutable())
+                        ->setDate($year, $month, 1)
+                        ->setTime((int) $baseStart->format('H'), (int) $baseStart->format('i'), (int) $baseStart->format('s'));
+
+                    $offset = ($weekday - (int) $firstOfMonth->format('N') + 7) % 7;
+                    $candidateStart = $firstOfMonth->modify('+' . ($offset + (($ordinal - 1) * 7)) . ' days');
+
+                    if (!$candidateStart instanceof \DateTimeInterface || (int) $candidateStart->format('n') !== $month) {
+                        $candidateStart = null;
+                    }
+                }
+
+                if (!$candidateStart instanceof \DateTimeInterface) {
+                    continue;
+                }
+
+                $candidateStartTs = $candidateStart->getTimestamp();
+                $candidateEndTs = $candidateStartTs + $duration;
+
+                if ($candidateStartTs <= (int) $eventModel->startTime) {
+                    continue;
+                }
+
+                if ($candidateEndTs > $maxEndTs) {
+                    continue;
+                }
+
+                if ($candidateStartTs > $rangeEndTs) {
+                    break;
+                }
+
+                if ($this->isRecurrenceLimitReached($generated, $eventModel, $recurrenceLimit)) {
+                    return;
+                }
+
+                ++$generated;
+
+                if ($candidateEndTs < $rangeStartTs) {
+                    continue;
+                }
+
+                $this->addEvent(
+                    $events,
+                    $eventModel,
+                    $candidateStartTs,
+                    $candidateEndTs,
+                    $rangeEndTs,
+                    $eventModel->pid,
+                    $noSpan,
+                    recursion: true
+                );
+            }
+
+            return;
+        }
+
+        $eventStartTime = $baseStart;
+        $eventEndTime = $eventStartTime->modify('+' . $duration . ' seconds');
+
+        while ($eventEndTime instanceof \DateTimeInterface && $eventEndTime->getTimestamp() < $maxEndTs) {
+            if ($this->isRecurrenceLimitReached($generated, $eventModel, $recurrenceLimit)) {
+                return;
+            }
+
+            $eventStartTime = $eventStartTime->modify('+ ' . $repeat['value'] . ' ' . $repeat['unit']);
+            $eventEndTime = $eventEndTime->modify('+ ' . $repeat['value'] . ' ' . $repeat['unit']);
+
+            if (!$eventStartTime instanceof \DateTimeInterface || !$eventEndTime instanceof \DateTimeInterface) {
                 break;
             }
 
-            $eventStartTime->modify($modifier);
-            $eventEndTime->modify($modifier);
+            if ($eventEndTime->getTimestamp() > $maxEndTs) {
+                break;
+            }
 
-            // Skip events outside the scope
-            if ($eventEndTime < $rangeStart || $eventStartTime > $rangeEnd) {
+            ++$generated;
+
+            if ($eventEndTime->getTimestamp() < $rangeStartTs || $eventStartTime->getTimestamp() > $rangeEndTs) {
                 continue;
             }
 
@@ -156,12 +333,82 @@ class EventGeneratorDecorator extends CalendarEventsGenerator
                 $eventModel,
                 $eventStartTime->getTimestamp(),
                 $eventEndTime->getTimestamp(),
-                $rangeEnd->getTimestamp(),
+                $rangeEndTs,
                 $eventModel->pid,
                 $noSpan,
                 recursion: true
             );
         }
+    }
+
+    /**
+     * @param \Koertho\AdvancedRepeatingEventsBundle\Model\CalendarEventsModel $eventModel
+     *
+     * @return array{unit: string, value: int}|null
+     */
+    private function resolveRepeat(CalendarEventsModel $eventModel): ?array
+    {
+        if ($eventModel->repeatEachUnit && (int) $eventModel->repeatEachValue > 0) {
+            return [
+                'unit' => (string) $eventModel->repeatEachUnit,
+                'value' => (int) $eventModel->repeatEachValue,
+            ];
+        }
+
+        $legacy = StringUtil::deserialize((string) $eventModel->repeatEach, true);
+
+        if (isset($legacy['unit'], $legacy['value']) && (int) $legacy['value'] > 0 && \is_string($legacy['unit'])) {
+            return [
+                'unit' => $legacy['unit'],
+                'value' => (int) $legacy['value'],
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * @param list<mixed> $pattern
+     *
+     * @return list<int>
+     */
+    private function resolveWeekdays(array $pattern): array
+    {
+        $map = [
+            'monday' => 1,
+            'tuesday' => 2,
+            'wednesday' => 3,
+            'thursday' => 4,
+            'friday' => 5,
+            'saturday' => 6,
+            'sunday' => 7,
+        ];
+        $weekdays = [];
+
+        foreach ($pattern as $value) {
+            if (\is_string($value) && isset($map[$value])) {
+                $weekdays[] = $map[$value];
+            }
+        }
+
+        $weekdays = array_values(array_unique($weekdays));
+        sort($weekdays);
+
+        return $weekdays;
+    }
+
+    /**
+     * @param \Koertho\AdvancedRepeatingEventsBundle\Model\CalendarEventsModel $eventModel
+     */
+    private function isRecurrenceLimitReached(int $generated, CalendarEventsModel $eventModel, ?int $recurrenceLimit): bool
+    {
+        $next = $generated + 1;
+
+        if ($eventModel->recurrences > 0 && $next > (int) $eventModel->recurrences) {
+            return true;
+        }
+
+        return null !== $recurrenceLimit && $next > $recurrenceLimit;
     }
 
     /**
