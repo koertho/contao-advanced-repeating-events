@@ -1,0 +1,39 @@
+.tl_rrule_builder {
+  border: 1px solid #d7d7d7;
+  border-radius: 6px;
+  padding: 12px;
+  background: #fafafa;
+}
+
+.tl_rrule_builder__grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.tl_rrule_builder__fieldset {
+  margin: 12px 0;
+  padding: 10px;
+  border: 1px solid #e2e2e2;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.tl_rrule_builder__fieldset > legend {
+  font-weight: 600;
+  padding: 0 4px;
+}
+
+.tl_rrule_builder__checklist {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.tl_rrule_builder [data-rrule-output] {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+.tl_rrule_builder .is-hidden {
+  display: none !important;
+}
