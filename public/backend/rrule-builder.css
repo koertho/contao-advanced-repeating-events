@@ -1,8 +1,9 @@
 .tl_rrule_builder {
-  border: 1px solid #d7d7d7;
-  border-radius: 6px;
+  border: 1px solid var(--content-border, var(--border, #999));
+  border-radius: 2px;
   padding: 12px;
-  background: #fafafa;
+  background: var(--content-bg, #fff);
+  color: var(--text, inherit);
 }
 
 .tl_rrule_builder__grid {
@@ -14,14 +15,15 @@
 .tl_rrule_builder__fieldset {
   margin: 12px 0;
   padding: 10px;
-  border: 1px solid #e2e2e2;
-  border-radius: 4px;
-  background: #fff;
+  border: 1px solid var(--border, #bbb);
+  border-radius: 2px;
+  background: var(--panel-bg, var(--content-bg, #fff));
 }
 
 .tl_rrule_builder__fieldset > legend {
   font-weight: 600;
   padding: 0 4px;
+  color: var(--text, inherit);
 }
 
 .tl_rrule_builder__checklist {
@@ -32,6 +34,25 @@
 
 .tl_rrule_builder [data-rrule-output] {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  background-color: var(--form-bg, #fff);
+  border-color: var(--form-border, #aaa);
+  color: var(--text, inherit);
+}
+
+.tl_rrule_builder .tl_text,
+.tl_rrule_builder .tl_select {
+  background-color: var(--form-bg, #fff);
+  border-color: var(--form-border, #aaa);
+  color: var(--text, inherit);
+}
+
+.tl_rrule_builder label,
+.tl_rrule_builder legend {
+  color: var(--text, inherit);
+}
+
+.tl_rrule_builder .widget p {
+  color: var(--gray, var(--text, inherit));
 }
 
 .tl_rrule_builder .is-hidden {

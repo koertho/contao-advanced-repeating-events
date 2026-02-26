@@ -140,14 +140,16 @@
     }
 
     parseInitialValue() {
-      const raw = this.output.value.trim();
+      const raw = this.normalizeRrule(this.output.value);
       if (!raw) {
         return;
       }
 
       const parts = this.parseRrule(raw);
-      if (parts.FREQ) {
-        this.fields.freq.value = parts.FREQ;
+      const freq = (parts.FREQ ?? "").toUpperCase();
+
+      if (["DAILY", "WEEKLY", "MONTHLY", "YEARLY"].includes(freq)) {
+        this.fields.freq.value = freq;
       }
 
       if (parts.INTERVAL) {
@@ -155,20 +157,27 @@
       }
 
       if (parts.BYDAY && this.fields.freq.value === "WEEKLY") {
-        const weeklyDays = parts.BYDAY.split(",");
+        const weeklyDays = this.parseByDayList(parts.BYDAY);
         this.fields.byday.forEach((item) => {
           item.checked = weeklyDays.includes(item.value);
         });
       }
 
       if (this.fields.freq.value === "MONTHLY") {
-        if (parts.BYSETPOS && parts.BYDAY && !parts.BYDAY.includes(",")) {
-          this.fields.monthlyMode.value = "weekdaypos";
-          this.fields.bysetpos.value = parts.BYSETPOS;
-          this.fields.monthlyWeekday.value = parts.BYDAY;
-        } else if (parts.BYMONTHDAY) {
+        const byDayTokens = this.parseByDayTokens(parts.BYDAY ?? "");
+        const firstByDayToken = byDayTokens[0] ?? null;
+
+        if (parts.BYMONTHDAY) {
           this.fields.monthlyMode.value = "monthday";
           this.fields.bymonthday.value = String(this.clampInt(parts.BYMONTHDAY, 1, 31, 1));
+        } else if (parts.BYSETPOS && firstByDayToken?.weekday) {
+          this.fields.monthlyMode.value = "weekdaypos";
+          this.fields.bysetpos.value = String(this.clampInt(parts.BYSETPOS, -53, 53, 1));
+          this.fields.monthlyWeekday.value = firstByDayToken.weekday;
+        } else if (firstByDayToken?.position && firstByDayToken.weekday) {
+          this.fields.monthlyMode.value = "weekdaypos";
+          this.fields.bysetpos.value = String(this.clampInt(firstByDayToken.position, -53, 53, 1));
+          this.fields.monthlyWeekday.value = firstByDayToken.weekday;
         }
       }
 
@@ -206,7 +215,7 @@
             return accumulator;
           }
 
-          accumulator[key.toUpperCase()] = rawValue;
+          accumulator[key.toUpperCase()] = rawValue.trim();
           return accumulator;
         }, {});
     }
@@ -214,12 +223,58 @@
     /**
      * @param {string} value
      */
+    normalizeRrule(value) {
+      const trimmed = value.trim();
+      if (trimmed.toUpperCase().startsWith("RRULE:")) {
+        return trimmed.slice(6).trim();
+      }
+
+      return trimmed;
+    }
+
+    /**
+     * @param {string} byday
+     * @returns {string[]}
+     */
+    parseByDayList(byday) {
+      return this.parseByDayTokens(byday)
+        .map((token) => token.weekday)
+        .filter(Boolean);
+    }
+
+    /**
+     * @param {string} byday
+     * @returns {{ position: string|null, weekday: string|null }[]}
+     */
+    parseByDayTokens(byday) {
+      return byday
+        .split(",")
+        .map((token) => token.trim().toUpperCase())
+        .filter(Boolean)
+        .map((token) => {
+          const match = token.match(/^([+-]?\d{1,2})?([A-Z]{2})$/);
+          if (!match) {
+            return { position: null, weekday: null };
+          }
+
+          return {
+            position: match[1] ?? null,
+            weekday: match[2] ?? null,
+          };
+        });
+    }
+
+    /**
+     * @param {string} value
+     */
     toUntilValue(value) {
-      if (!/^\d{8}/.test(value)) {
+      const match = value.match(/^(\d{8})/);
+      if (!match) {
         return "";
       }
 
-      return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
+      const date = match[1];
+      return `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`;
     }
 
     /**

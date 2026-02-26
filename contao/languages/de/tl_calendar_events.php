@@ -23,6 +23,7 @@ $GLOBALS['TL_LANG']['tl_calendar_events']['rrule_builder']['occurrence_1'] = 'Er
 $GLOBALS['TL_LANG']['tl_calendar_events']['rrule_builder']['occurrence_2'] = 'Zweiter';
 $GLOBALS['TL_LANG']['tl_calendar_events']['rrule_builder']['occurrence_3'] = 'Dritter';
 $GLOBALS['TL_LANG']['tl_calendar_events']['rrule_builder']['occurrence_4'] = 'Vierter';
+$GLOBALS['TL_LANG']['tl_calendar_events']['rrule_builder']['occurrence_5'] = 'Fünfter';
 $GLOBALS['TL_LANG']['tl_calendar_events']['rrule_builder']['occurrence_last'] = 'Letzter';
 $GLOBALS['TL_LANG']['tl_calendar_events']['rrule_builder']['weekday'] = 'Wochentag';
 $GLOBALS['TL_LANG']['tl_calendar_events']['rrule_builder']['weekday_mo'] = 'Montag';

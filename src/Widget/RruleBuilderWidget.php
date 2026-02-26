@@ -58,6 +58,7 @@ final class RruleBuilderWidget extends Widget
             '2' => $labels['occurrence_2'],
             '3' => $labels['occurrence_3'],
             '4' => $labels['occurrence_4'],
+            '5' => $labels['occurrence_5'],
             '-1' => $labels['occurrence_last'],
         ]);
 
@@ -224,6 +225,7 @@ HTML,
             'occurrence_2' => $this->translate('occurrence_2', 'Second'),
             'occurrence_3' => $this->translate('occurrence_3', 'Third'),
             'occurrence_4' => $this->translate('occurrence_4', 'Fourth'),
+            'occurrence_5' => $this->translate('occurrence_5', 'Fifth'),
             'occurrence_last' => $this->translate('occurrence_last', 'Last'),
             'weekday' => $this->translate('weekday', 'Weekday'),
             'weekday_mo' => $this->translate('weekday_mo', 'Monday'),
