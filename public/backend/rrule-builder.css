@@ -32,6 +32,11 @@
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
 }
 
+.tl_rrule_builder label,
+.tl_rrule_builder legend {
+  color: var(--text, inherit);
+}
+
 .tl_rrule_builder [data-rrule-output] {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   background-color: var(--form-bg, #fff);
@@ -43,11 +48,6 @@
 .tl_rrule_builder .tl_select {
   background-color: var(--form-bg, #fff);
   border-color: var(--form-border, #aaa);
-  color: var(--text, inherit);
-}
-
-.tl_rrule_builder label,
-.tl_rrule_builder legend {
   color: var(--text, inherit);
 }
 
