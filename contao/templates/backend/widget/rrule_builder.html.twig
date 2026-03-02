@@ -1,0 +1,111 @@
+{% trans_default_domain 'contao_tl_calendar_events' %}
+{% set frequency_options = ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'] %}
+{% set monthly_mode_options = ['monthday', 'weekdaypos'] %}
+{% set occurrence_options = ['1', '2', '3', '4', '5', '-1'] %}
+{% set weekday_options = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'] %}
+{% set end_options = ['never', 'count', 'until'] %}
+
+<div class="tl_rrule_builder" data-rrule-builder>
+  <div class="tl_rrule_builder__grid">
+    <div class="widget">
+      <label for="ctrl_{{ id }}_freq">{{ 'tl_calendar_events.rrule_builder.frequency'|trans }}</label>
+      <select id="ctrl_{{ id }}_freq" class="tl_select" data-rrule-part="freq">
+        {% for option in frequency_options %}
+          <option value="{{ option }}">{{ ('tl_calendar_events.rrule_builder.frequency_' ~ option|lower)|trans }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="widget">
+      <label for="ctrl_{{ id }}_interval">{{ 'tl_calendar_events.rrule_builder.interval'|trans }}</label>
+      <input type="number" id="ctrl_{{ id }}_interval" class="tl_text" min="1" value="1" data-rrule-part="interval">
+    </div>
+  </div>
+
+  <fieldset class="tl_rrule_builder__fieldset is-hidden" data-rrule-section="weekly">
+    <legend>{{ 'tl_calendar_events.rrule_builder.weekdays'|trans }}</legend>
+    <div class="tl_rrule_builder__checklist">
+      {% for weekday in weekday_options %}
+        <label>
+          <input type="checkbox" value="{{ weekday }}" data-rrule-part="byday">
+          {{ ('tl_calendar_events.rrule_builder.weekday_' ~ weekday|lower)|trans }}
+        </label>
+      {% endfor %}
+    </div>
+  </fieldset>
+
+  <fieldset class="tl_rrule_builder__fieldset is-hidden" data-rrule-section="monthly">
+    <legend>{{ 'tl_calendar_events.rrule_builder.monthly'|trans }}</legend>
+    <div class="tl_rrule_builder__grid">
+      <div class="widget">
+        <label for="ctrl_{{ id }}_monthly_mode">{{ 'tl_calendar_events.rrule_builder.monthly_mode'|trans }}</label>
+        <select id="ctrl_{{ id }}_monthly_mode" class="tl_select" data-rrule-part="monthly_mode">
+          {% for option in monthly_mode_options %}
+            <option value="{{ option }}">{{ ('tl_calendar_events.rrule_builder.monthly_mode_' ~ option)|trans }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="widget is-hidden" data-rrule-section="monthly-monthday">
+        <label for="ctrl_{{ id }}_bymonthday">{{ 'tl_calendar_events.rrule_builder.day_of_month'|trans }}</label>
+        <input type="number" id="ctrl_{{ id }}_bymonthday" class="tl_text" min="1" max="31" value="1" data-rrule-part="bymonthday">
+      </div>
+      <div class="widget is-hidden" data-rrule-section="monthly-weekdaypos">
+        <label for="ctrl_{{ id }}_bysetpos">{{ 'tl_calendar_events.rrule_builder.occurrence'|trans }}</label>
+        <select id="ctrl_{{ id }}_bysetpos" class="tl_select" data-rrule-part="bysetpos">
+          {% for option in occurrence_options %}
+            {% set suffix = option == '-1' ? 'last' : option %}
+            <option value="{{ option }}">{{ ('tl_calendar_events.rrule_builder.occurrence_' ~ suffix)|trans }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="widget is-hidden" data-rrule-section="monthly-weekdaypos">
+        <label for="ctrl_{{ id }}_monthly_weekday">{{ 'tl_calendar_events.rrule_builder.weekday'|trans }}</label>
+        <select id="ctrl_{{ id }}_monthly_weekday" class="tl_select" data-rrule-part="monthly_weekday">
+          {% for weekday in weekday_options %}
+            <option value="{{ weekday }}">{{ ('tl_calendar_events.rrule_builder.weekday_' ~ weekday|lower)|trans }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset class="tl_rrule_builder__fieldset is-hidden" data-rrule-section="yearly">
+    <legend>{{ 'tl_calendar_events.rrule_builder.yearly'|trans }}</legend>
+    <div class="tl_rrule_builder__grid">
+      <div class="widget">
+        <label for="ctrl_{{ id }}_bymonth">{{ 'tl_calendar_events.rrule_builder.month'|trans }}</label>
+        <input type="number" id="ctrl_{{ id }}_bymonth" class="tl_text" min="1" max="12" value="1" data-rrule-part="bymonth">
+      </div>
+      <div class="widget">
+        <label for="ctrl_{{ id }}_yearly_bymonthday">{{ 'tl_calendar_events.rrule_builder.day_of_month'|trans }}</label>
+        <input type="number" id="ctrl_{{ id }}_yearly_bymonthday" class="tl_text" min="1" max="31" value="1" data-rrule-part="yearly_bymonthday">
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset class="tl_rrule_builder__fieldset">
+    <legend>{{ 'tl_calendar_events.rrule_builder.end'|trans }}</legend>
+    <div class="tl_rrule_builder__grid">
+      <div class="widget">
+        <label for="ctrl_{{ id }}_end_mode">{{ 'tl_calendar_events.rrule_builder.end_mode'|trans }}</label>
+        <select id="ctrl_{{ id }}_end_mode" class="tl_select" data-rrule-part="end_mode">
+          {% for option in end_options %}
+            <option value="{{ option }}">{{ ('tl_calendar_events.rrule_builder.end_' ~ option)|trans }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="widget is-hidden" data-rrule-section="end-count">
+        <label for="ctrl_{{ id }}_count">{{ 'tl_calendar_events.rrule_builder.count'|trans }}</label>
+        <input type="number" id="ctrl_{{ id }}_count" class="tl_text" min="1" value="1" data-rrule-part="count">
+      </div>
+      <div class="widget is-hidden" data-rrule-section="end-until">
+        <label for="ctrl_{{ id }}_until">{{ 'tl_calendar_events.rrule_builder.until'|trans }}</label>
+        <input type="date" id="ctrl_{{ id }}_until" class="tl_text" data-rrule-part="until">
+      </div>
+    </div>
+  </fieldset>
+
+  <div class="widget">
+    <label for="ctrl_{{ id }}">{{ 'tl_calendar_events.rrule_builder.rrule'|trans }}</label>
+    <input type="text" name="{{ name }}" id="ctrl_{{ id }}" class="tl_text{{ class }}" value="{{ value }}" readonly data-rrule-output{{ required }}{{ attributes|raw }}>
+  </div>
+</div>{{ wizard|raw }}
