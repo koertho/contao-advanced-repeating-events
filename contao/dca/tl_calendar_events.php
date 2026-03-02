@@ -26,5 +26,5 @@ $dca['fields']['rrule'] = [
         'tl_class' => 'w50 clr',
 //        'basicEntities' => true,
     ],
-    'sql' => ['type' => 'text', 'notnull' => false],
+    'sql' => ['type' => 'text', 'default' => ''],
 ];

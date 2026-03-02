@@ -12,6 +12,8 @@ use Contao\CoreBundle\Routing\ContentUrlGenerator;
 use Contao\CoreBundle\Routing\PageFinder;
 use Contao\Module;
 use FOS\HttpCache\ResponseTagger;
+use Recurr\Exception\InvalidRRule;
+use Recurr\Exception\InvalidWeekday;
 use Recurr\Rule;
 use Recurr\Transformer\ArrayTransformer;
 use Recurr\Transformer\ArrayTransformerConfig;
@@ -23,18 +25,19 @@ class EventGeneratorDecorator extends CalendarEventsGenerator
     private array $getAllEventsCalled = [];
 
     public function __construct(
-        ContaoFramework $contaoFramework,
-        PageFinder $pageFinder,
+        ContaoFramework     $contaoFramework,
+        PageFinder          $pageFinder,
         ContentUrlGenerator $contentUrlGenerator,
         TranslatorInterface $translator,
         ResponseTagger|null $responseTagger = null,
-    ) {
+    )
+    {
         parent::__construct($contaoFramework, $pageFinder, $contentUrlGenerator, $translator, $responseTagger);
     }
 
     public function getAllEvents(array $calendars, \DateTimeInterface $rangeStart, \DateTimeInterface $rangeEnd, ?bool $featured = null, bool $noSpan = false, ?int $recurrenceLimit = null, ?Module $module = null): array
     {
-        $cacheKey = $rangeEnd->getTimestamp().'_'.(int) $noSpan;
+        $cacheKey = $rangeEnd->getTimestamp() . '_' . (int)$noSpan;
         $this->getAllEventsCalled[$cacheKey] = [
             'rangeStart' => $rangeStart,
             'rangeEnd' => $rangeEnd,
@@ -54,7 +57,7 @@ class EventGeneratorDecorator extends CalendarEventsGenerator
      */
     public function addEvent(array &$events, CalendarEventsModel $eventModel, int $start, int $end, int $rangeEnd, int $calendar, bool $noSpan, bool $recursion = false): void
     {
-        if (!$eventModel->areRecurring || '' === trim((string) $eventModel->rrule)) {
+        if (!$eventModel->recurring && !$eventModel->areRecurring) {
             parent::addEvent($events, $eventModel, $start, $end, $rangeEnd, $calendar, $noSpan);
 
             return;
@@ -83,7 +86,7 @@ class EventGeneratorDecorator extends CalendarEventsGenerator
             return;
         }
 
-        $repeatContext = $this->getAllEventsCalled[$rangeEnd.'_'.(int) $noSpan] ?? null;
+        $repeatContext = $this->getAllEventsCalled[$rangeEnd . '_' . (int)$noSpan] ?? null;
 
         if (\is_array($repeatContext)) {
             $this->applyRecurrences($events, $eventModel, $repeatContext);
@@ -119,15 +122,20 @@ class EventGeneratorDecorator extends CalendarEventsGenerator
      */
     private function applyRecurrences(array &$events, CalendarEventsModel $eventModel, array $repeatContext): void
     {
-        $normalizedRrule = $this->normalizeRrule((string) $eventModel->rrule);
-        if (null === $normalizedRrule) {
+        $timezone = new \DateTimeZone(date_default_timezone_get());
+        $eventStart = (new \DateTimeImmutable('@' . (int)$eventModel->startTime))->setTimezone($timezone);
+        $eventEnd = (new \DateTimeImmutable('@' . (int)$eventModel->endTime))->setTimezone($timezone);
+
+        try {
+            $rule = new Rule($eventModel->rrule, $eventStart, $eventEnd, $timezone->getName());
+        } catch (InvalidRRule) {
             return;
         }
 
         $rangeStart = $repeatContext['rangeStart'] ?? null;
         $rangeEnd = $repeatContext['rangeEnd'] ?? null;
-        $noSpan = (bool) ($repeatContext['noSpan'] ?? false);
-        $recurrenceLimit = isset($repeatContext['recurrenceLimit']) ? (int) $repeatContext['recurrenceLimit'] : null;
+        $noSpan = (bool)($repeatContext['noSpan'] ?? false);
+        $recurrenceLimit = isset($repeatContext['recurrenceLimit']) ? (int)$repeatContext['recurrenceLimit'] : null;
 
         if (!$rangeStart instanceof \DateTimeInterface || !$rangeEnd instanceof \DateTimeInterface) {
             return;
@@ -135,101 +143,57 @@ class EventGeneratorDecorator extends CalendarEventsGenerator
 
         $rangeStartTs = $rangeStart->getTimestamp();
         $rangeEndTs = $rangeEnd->getTimestamp();
-        $timezone = new \DateTimeZone(date_default_timezone_get());
-        $eventStart = (new \DateTimeImmutable('@'.(int) $eventModel->startTime))->setTimezone($timezone);
-        $eventEnd = (new \DateTimeImmutable('@'.(int) $eventModel->endTime))->setTimezone($timezone);
-
-        try {
-            $rule = new Rule($normalizedRrule, $eventStart, $eventEnd, $timezone->getName());
-        } catch (\Throwable) {
-            return;
-        }
 
         $config = new ArrayTransformerConfig();
 
         $transformer = new ArrayTransformer($config);
         $constraint = new BetweenConstraint(
-            (new \DateTimeImmutable('@'.$rangeStartTs))->setTimezone($timezone),
-            (new \DateTimeImmutable('@'.$rangeEndTs))->setTimezone($timezone),
+            (new \DateTimeImmutable('@' . $rangeStartTs))->setTimezone($timezone),
+            (new \DateTimeImmutable('@' . $rangeEndTs))->setTimezone($timezone),
             true
         );
 
         $generated = 0;
-        $originalStartTs = (int) $eventModel->startTime;
+        $originalStartTs = (int)$eventModel->startTime;
 
         /**
          * @var \Recurr\Recurrence $recurrence
          */
-        foreach ($transformer->transform($rule, $constraint) as $recurrence) {
-            $occurrenceStart = $recurrence->getStart();
-            $occurrenceEnd = $recurrence->getEnd();
+        try {
+            foreach ($transformer->transform($rule, $constraint) as $recurrence) {
+                $occurrenceStart = $recurrence->getStart();
+                $occurrenceEnd = $recurrence->getEnd();
 
-            $occurrenceStartTs = $occurrenceStart->getTimestamp();
-            $occurrenceEndTs = $occurrenceEnd->getTimestamp();
+                $occurrenceStartTs = $occurrenceStart->getTimestamp();
+                $occurrenceEndTs = $occurrenceEnd->getTimestamp();
 
-            if ($occurrenceStartTs <= $originalStartTs) {
-                continue;
+                if ($occurrenceStartTs <= $originalStartTs) {
+                    continue;
+                }
+
+                if (null !== $recurrenceLimit && $generated >= $recurrenceLimit) {
+                    return;
+                }
+
+                ++$generated;
+
+                if ($occurrenceEndTs < $rangeStartTs || $occurrenceStartTs > $rangeEndTs) {
+                    continue;
+                }
+
+                $this->addEvent(
+                    $events,
+                    $eventModel,
+                    $occurrenceStartTs,
+                    $occurrenceEndTs,
+                    $rangeEndTs,
+                    $eventModel->pid,
+                    $noSpan,
+                    recursion: true
+                );
             }
+        } catch (InvalidWeekday) {
 
-            if (null !== $recurrenceLimit && $generated >= $recurrenceLimit) {
-                return;
-            }
-
-            ++$generated;
-
-            if ($occurrenceEndTs < $rangeStartTs || $occurrenceStartTs > $rangeEndTs) {
-                continue;
-            }
-
-            $this->addEvent(
-                $events,
-                $eventModel,
-                $occurrenceStartTs,
-                $occurrenceEndTs,
-                $rangeEndTs,
-                $eventModel->pid,
-                $noSpan,
-                recursion: true
-            );
         }
-    }
-
-    private function normalizeRrule(string $raw): ?string
-    {
-        $raw = trim($raw);
-
-        if ('' === $raw) {
-            return null;
-        }
-
-        $lines = preg_split('/\R+/', $raw) ?: [];
-        $candidate = null;
-
-        foreach ($lines as $line) {
-            $line = trim($line);
-
-            if ('' === $line) {
-                continue;
-            }
-
-            if (str_starts_with(strtoupper($line), 'RRULE:')) {
-                $candidate = trim(substr($line, 6));
-                break;
-            }
-
-            if (null === $candidate) {
-                $candidate = $line;
-            }
-        }
-
-        if (!\is_string($candidate) || '' === $candidate) {
-            return null;
-        }
-
-        if (!str_contains(strtoupper($candidate), 'FREQ=')) {
-            return null;
-        }
-
-        return preg_replace('/\s+/', '', $candidate);
     }
 }
