@@ -21,6 +21,10 @@ $dca['fields']['areRecurring'] = [
 $dca['fields']['rrule'] = [
     'exclude' => true,
     'inputType' => 'rruleBuilder',
-    'eval' => ['tl_class' => 'w50 clr'],
+    'eval' => [
+        'decodeEntities' => true,
+        'tl_class' => 'w50 clr',
+//        'basicEntities' => true,
+    ],
     'sql' => ['type' => 'text', 'notnull' => false],
 ];
