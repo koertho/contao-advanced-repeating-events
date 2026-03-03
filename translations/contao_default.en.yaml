@@ -1,0 +1,4 @@
+CTE:
+  are_event_reader:
+    0: "ARE Event Reader"
+    1: "Outputs one calendar event in the frontend and resolves RRULE occurrences via times parameter."

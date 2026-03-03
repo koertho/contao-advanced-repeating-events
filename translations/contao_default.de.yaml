@@ -1,0 +1,4 @@
+CTE:
+  are_event_reader:
+    0: "ARE Event Leser"
+    1: "Gibt ein einzelnes Kalendereignis im Frontend aus und löst RRULE-Instanzen über den times-Parameter auf."

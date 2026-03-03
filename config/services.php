@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Symfony\Component\DependencyInjection\Loader\Configurator;
 
 use Koertho\AdvancedRepeatingEventsBundle\Contao\EventGeneratorDecorator;
@@ -12,7 +14,7 @@ return function (ContainerConfigurator $container): void {
 
     $services->load(
         'Koertho\\AdvancedRepeatingEventsBundle\\',
-        '../src/{EventListener}'
+        '../src/{Controller,EventListener}'
     );
 
     $services->set(EventGeneratorDecorator::class)

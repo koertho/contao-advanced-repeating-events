@@ -1,0 +1,5 @@
+tl_content:
+  are_event_reader_legend: "ARE Event Leser-Einstellungen"
+  areReaderCalendars:
+    0: "ARE Event Leser Kalender"
+    1: "Wählen Sie die Kalender aus, aus denen der ARE Event Leser Ereignisse lesen darf."

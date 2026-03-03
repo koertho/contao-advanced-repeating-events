@@ -1,0 +1,43 @@
+{% extends '@Contao/content_element/_base.html.twig' %}
+
+{% block content %}
+  {% if is_backend|default(false) %}
+    {{ block('backend_output') }}
+  {% elseif event %}
+    {{ block('frontend_output') }}
+  {% endif %}
+{% endblock %}
+
+{% block backend_output %}
+  <p>{{ wildcard }}</p>
+{% endblock %}
+
+{% block frontend_output %}
+  <h2>{{ event.title }}</h2>
+
+  <p class="are-event-reader__meta">
+    <time datetime="{{ event.startIso }}">{{ event.dateLabel }}</time>
+  </p>
+
+  {% if event.location %}
+    <p class="are-event-reader__location">{{ event.location }}</p>
+  {% endif %}
+
+  {% if event.teaser %}
+    <div class="are-event-reader__teaser">
+      {{ event.teaser|raw }}
+    </div>
+  {% endif %}
+
+  {% if event.details %}
+    <div class="are-event-reader__details">
+      {{ event.details|raw }}
+    </div>
+  {% endif %}
+
+  {% if content_elements is not empty %}
+    <div class="are-event-reader__content-elements">
+      {{ content_elements|raw }}
+    </div>
+  {% endif %}
+{% endblock %}
