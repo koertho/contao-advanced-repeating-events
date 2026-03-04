@@ -24,6 +24,7 @@ use Contao\Environment;
 use Contao\Input;
 use Contao\StringUtil;
 use Contao\System;
+use Koertho\AdvancedRepeatingEventsBundle\Contao\EventGeneratorDecorator;
 use Recurr\Rule;
 use Recurr\Transformer\ArrayTransformer;
 use Recurr\Transformer\ArrayTransformerConfig;
@@ -40,6 +41,7 @@ final class AreEventReaderController extends AbstractContentElementController
         private readonly ResponseContextAccessor $responseContextAccessor,
         private readonly HtmlDecoder             $htmlDecoder,
         private readonly InsertTagParser         $insertTagParser,
+        private readonly EventGeneratorDecorator   $eventGenerator,
     ) {}
 
     protected function getResponse(FragmentTemplate $template, ContentModel $model, Request $request): Response
@@ -54,6 +56,23 @@ final class AreEventReaderController extends AbstractContentElementController
         $objEvent = $this->getEvent($model);
         $this->redirectIfApplicable($objEvent);
         $this->setPageMeta($objEvent, $request);
+
+        // Do not show dates in the past if the event is recurring (see #923)
+        if ($objEvent->areRecurring)
+        {
+            $arrRange = StringUtil::deserialize($objEvent->repeatEach);
+
+            if (isset($arrRange['unit'], $arrRange['value']))
+            {
+                while ($intEndTime < time() && $intEndTime < $objEvent->repeatEnd)
+                {
+                    $intStartTime = strtotime('+' . $arrRange['value'] . ' ' . $arrRange['unit'], $intStartTime);
+                    $intEndTime = strtotime('+' . $arrRange['value'] . ' ' . $arrRange['unit'], $intEndTime);
+                }
+            }
+        }
+
+        $data = $template->getData();
 
         [$startTs, $endTs, $isOccurrence] = $this->resolveOccurrence($objEvent, $this->resolveRequestedOccurrenceTimestamp($request));
 
@@ -166,14 +185,13 @@ final class AreEventReaderController extends AbstractContentElementController
     /**
      * @return array{0: int, 1: int, 2: bool}
      */
-    private function resolveOccurrence(CalendarEventsModel $event, ?int $requestedStartTs): array
+    private function resolveOccurrence(CalendarEventsModel $event): array
     {
         $startTs = (int)$event->startTime;
         $endTs = (int)$event->endTime;
 
         if (
             !$event->areRecurring
-            || null === $requestedStartTs
             || '' === trim((string)$event->rrule)
         ) {
             return [$startTs, $endTs, false];
