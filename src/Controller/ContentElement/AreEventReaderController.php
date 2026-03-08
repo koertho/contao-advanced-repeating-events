@@ -23,12 +23,7 @@ use Contao\Date;
 use Contao\Environment;
 use Contao\Input;
 use Contao\StringUtil;
-use Contao\System;
-use Koertho\AdvancedRepeatingEventsBundle\Contao\EventGeneratorDecorator;
-use Recurr\Rule;
-use Recurr\Transformer\ArrayTransformer;
-use Recurr\Transformer\ArrayTransformerConfig;
-use Recurr\Transformer\Constraint\BetweenConstraint;
+use Koertho\AdvancedRepeatingEventsBundle\Recurrence\RecurrenceCalculatorFactory;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -37,11 +32,11 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 final class AreEventReaderController extends AbstractContentElementController
 {
     public function __construct(
-        private readonly ContentUrlGenerator     $contentUrlGenerator,
-        private readonly ResponseContextAccessor $responseContextAccessor,
-        private readonly HtmlDecoder             $htmlDecoder,
-        private readonly InsertTagParser         $insertTagParser,
-        private readonly EventGeneratorDecorator   $eventGenerator,
+        private readonly ContentUrlGenerator         $contentUrlGenerator,
+        private readonly ResponseContextAccessor     $responseContextAccessor,
+        private readonly HtmlDecoder                 $htmlDecoder,
+        private readonly InsertTagParser             $insertTagParser,
+        private readonly RecurrenceCalculatorFactory $recurrenceCalculatorFactory,
     ) {}
 
     protected function getResponse(FragmentTemplate $template, ContentModel $model, Request $request): Response
@@ -57,24 +52,7 @@ final class AreEventReaderController extends AbstractContentElementController
         $this->redirectIfApplicable($objEvent);
         $this->setPageMeta($objEvent, $request);
 
-        // Do not show dates in the past if the event is recurring (see #923)
-        if ($objEvent->areRecurring)
-        {
-            $arrRange = StringUtil::deserialize($objEvent->repeatEach);
-
-            if (isset($arrRange['unit'], $arrRange['value']))
-            {
-                while ($intEndTime < time() && $intEndTime < $objEvent->repeatEnd)
-                {
-                    $intStartTime = strtotime('+' . $arrRange['value'] . ' ' . $arrRange['unit'], $intStartTime);
-                    $intEndTime = strtotime('+' . $arrRange['value'] . ' ' . $arrRange['unit'], $intEndTime);
-                }
-            }
-        }
-
-        $data = $template->getData();
-
-        [$startTs, $endTs, $isOccurrence] = $this->resolveOccurrence($objEvent, $this->resolveRequestedOccurrenceTimestamp($request));
+        [$startTs, $endTs, $isOccurrence] = $this->resolveOccurrence($objEvent);
 
         $template->set('event', $this->buildViewData($objEvent, $startTs, $endTs, $isOccurrence));
         $template->set('content_elements', $this->renderEventContentElements((int)$objEvent->id));
@@ -101,20 +79,20 @@ final class AreEventReaderController extends AbstractContentElementController
         return $objEvent;
     }
 
-    private function redirectIfApplicable(CalendarEventsModel $objEvent): void
+    private function redirectIfApplicable(CalendarEventsModel $eventModel): void
     {
-        switch ($objEvent->source) {
+        switch ($eventModel->source) {
             case 'internal':
             case 'article':
             case 'external':
                 throw new RedirectResponseException(
-                    $this->contentUrlGenerator->generate($objEvent, array(), UrlGeneratorInterface::ABSOLUTE_URL),
+                    $this->contentUrlGenerator->generate($eventModel, array(), UrlGeneratorInterface::ABSOLUTE_URL),
                     301
                 );
         }
     }
 
-    private function setPageMeta(CalendarEventsModel $objEvent, Request $request): void
+    private function setPageMeta(CalendarEventsModel $eventModel, Request $request): void
     {
         // Overwrite the page metadata (see #2853, #4955 and #87)
         $responseContext = $this->responseContextAccessor->getResponseContext();
@@ -122,24 +100,24 @@ final class AreEventReaderController extends AbstractContentElementController
         if ($responseContext?->has(HtmlHeadBag::class)) {
             $htmlHeadBag = $responseContext->get(HtmlHeadBag::class);
 
-            if ($objEvent->pageTitle) {
-                $htmlHeadBag->setTitle($objEvent->pageTitle); // Already stored decoded
-            } elseif ($objEvent->title) {
-                $htmlHeadBag->setTitle($this->htmlDecoder->inputEncodedToPlainText($objEvent->title));
+            if ($eventModel->pageTitle) {
+                $htmlHeadBag->setTitle($eventModel->pageTitle); // Already stored decoded
+            } elseif ($eventModel->title) {
+                $htmlHeadBag->setTitle($this->htmlDecoder->inputEncodedToPlainText($eventModel->title));
             }
 
-            if ($objEvent->description) {
-                $htmlHeadBag->setMetaDescription($this->htmlDecoder->inputEncodedToPlainText($objEvent->description));
-            } elseif ($objEvent->teaser) {
-                $htmlHeadBag->setMetaDescription($this->htmlDecoder->htmlToPlainText($objEvent->teaser));
+            if ($eventModel->description) {
+                $htmlHeadBag->setMetaDescription($this->htmlDecoder->inputEncodedToPlainText($eventModel->description));
+            } elseif ($eventModel->teaser) {
+                $htmlHeadBag->setMetaDescription($this->htmlDecoder->htmlToPlainText($eventModel->teaser));
             }
 
-            if ($objEvent->robots) {
-                $htmlHeadBag->setMetaRobots($objEvent->robots);
+            if ($eventModel->robots) {
+                $htmlHeadBag->setMetaRobots($eventModel->robots);
             }
 
-            if ($objEvent->canonicalLink) {
-                $url = $this->insertTagParser->replaceInline($objEvent->canonicalLink);
+            if ($eventModel->canonicalLink) {
+                $url = $this->insertTagParser->replaceInline($eventModel->canonicalLink);
 
                 // Ensure absolute links
                 if (!preg_match('#^https?://#', $url)) {
@@ -148,7 +126,7 @@ final class AreEventReaderController extends AbstractContentElementController
 
                 $htmlHeadBag->setCanonicalUri($url);
             } elseif (!$this->cal_keepCanonical) {
-                $htmlHeadBag->setCanonicalUri($this->contentUrlGenerator->generate($objEvent, array(), UrlGeneratorInterface::ABSOLUTE_URL));
+                $htmlHeadBag->setCanonicalUri($this->contentUrlGenerator->generate($eventModel, array(), UrlGeneratorInterface::ABSOLUTE_URL));
             }
         }
     }
@@ -171,17 +149,6 @@ final class AreEventReaderController extends AbstractContentElementController
         return $buffer;
     }
 
-    private function resolveRequestedOccurrenceTimestamp(Request $request): ?int
-    {
-        $times = $request->query->get('times');
-
-        if (\is_scalar($times) && preg_match('/^\d{6,12}$/', (string)$times)) {
-            return (int)$times;
-        }
-
-        return null;
-    }
-
     /**
      * @return array{0: int, 1: int, 2: bool}
      */
@@ -189,56 +156,23 @@ final class AreEventReaderController extends AbstractContentElementController
     {
         $startTs = (int)$event->startTime;
         $endTs = (int)$event->endTime;
+        $calculator = $this->recurrenceCalculatorFactory->createForEvent($event);
 
-        if (
-            !$event->areRecurring
-            || '' === trim((string)$event->rrule)
-        ) {
+        if (null === $calculator) {
             return [$startTs, $endTs, false];
         }
 
-        $normalizedRrule = $this->normalizeRrule((string)$event->rrule);
+        $occurrence = $calculator->resolveCurrentOrUpcomingOccurrence(time(), false);
 
-        if (null === $normalizedRrule) {
+        if (null === $occurrence) {
             return [$startTs, $endTs, false];
         }
 
-        $timezone = new \DateTimeZone((string)date_default_timezone_get());
-        $eventStart = (new \DateTimeImmutable('@' . $startTs))->setTimezone($timezone);
-        $eventEnd = (new \DateTimeImmutable('@' . $endTs))->setTimezone($timezone);
-        $requested = (new \DateTimeImmutable('@' . $requestedStartTs))->setTimezone($timezone);
+        $occurrenceStartTs = $occurrence['start'];
+        $occurrenceEndTs = $occurrence['end'];
+        $isOccurrence = $occurrenceStartTs !== $startTs || $occurrenceEndTs !== $endTs;
 
-        try {
-            $rule = new Rule($normalizedRrule, $eventStart, $eventEnd, $timezone->getName());
-            $config = new ArrayTransformerConfig();
-            $config->setVirtualLimit(10000);
-
-            $transformer = new ArrayTransformer($config);
-            $constraint = new BetweenConstraint(
-                $requested->modify('-1 second'),
-                $requested->modify('+1 second'),
-                true
-            );
-
-            foreach ($transformer->transform($rule, $constraint) as $recurrence) {
-                $recurrenceStart = $recurrence->getStart();
-                $recurrenceEnd = $recurrence->getEnd();
-
-                if (!$recurrenceStart instanceof \DateTimeInterface || !$recurrenceEnd instanceof \DateTimeInterface) {
-                    continue;
-                }
-
-                if ($recurrenceStart->getTimestamp() !== $requestedStartTs) {
-                    continue;
-                }
-
-                return [$recurrenceStart->getTimestamp(), $recurrenceEnd->getTimestamp(), true];
-            }
-        } catch (\Throwable) {
-            return [$startTs, $endTs, false];
-        }
-
-        return [$startTs, $endTs, false];
+        return [$occurrenceStartTs, $occurrenceEndTs, $isOccurrence];
     }
 
     /**
@@ -268,22 +202,4 @@ final class AreEventReaderController extends AbstractContentElementController
         ];
     }
 
-    private function normalizeRrule(string $raw): ?string
-    {
-        $value = trim($raw);
-
-        if ('' === $value) {
-            return null;
-        }
-
-        if (str_starts_with(strtoupper($value), 'RRULE:')) {
-            $value = trim(substr($value, 6));
-        }
-
-        if (!str_contains(strtoupper($value), 'FREQ=')) {
-            return null;
-        }
-
-        return preg_replace('/\s+/', '', $value) ?: null;
-    }
 }

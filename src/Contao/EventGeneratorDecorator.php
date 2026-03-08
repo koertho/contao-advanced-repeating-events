@@ -12,12 +12,7 @@ use Contao\CoreBundle\Routing\ContentUrlGenerator;
 use Contao\CoreBundle\Routing\PageFinder;
 use Contao\Module;
 use FOS\HttpCache\ResponseTagger;
-use Recurr\Exception\InvalidRRule;
-use Recurr\Exception\InvalidWeekday;
-use Recurr\Rule;
-use Recurr\Transformer\ArrayTransformer;
-use Recurr\Transformer\ArrayTransformerConfig;
-use Recurr\Transformer\Constraint\BetweenConstraint;
+use Koertho\AdvancedRepeatingEventsBundle\Recurrence\RecurrenceCalculatorFactory;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 class EventGeneratorDecorator extends CalendarEventsGenerator
@@ -29,6 +24,7 @@ class EventGeneratorDecorator extends CalendarEventsGenerator
         PageFinder          $pageFinder,
         ContentUrlGenerator $contentUrlGenerator,
         TranslatorInterface $translator,
+        private readonly RecurrenceCalculatorFactory $recurrenceCalculatorFactory,
         ResponseTagger|null $responseTagger = null,
     )
     {
@@ -122,16 +118,6 @@ class EventGeneratorDecorator extends CalendarEventsGenerator
      */
     private function applyRecurrences(array &$events, CalendarEventsModel $eventModel, array $repeatContext): void
     {
-        $timezone = new \DateTimeZone(date_default_timezone_get());
-        $eventStart = (new \DateTimeImmutable('@' . (int)$eventModel->startTime))->setTimezone($timezone);
-        $eventEnd = (new \DateTimeImmutable('@' . (int)$eventModel->endTime))->setTimezone($timezone);
-
-        try {
-            $rule = new Rule($eventModel->rrule, $eventStart, $eventEnd, $timezone->getName());
-        } catch (InvalidRRule) {
-            return;
-        }
-
         $rangeStart = $repeatContext['rangeStart'] ?? null;
         $rangeEnd = $repeatContext['rangeEnd'] ?? null;
         $noSpan = (bool)($repeatContext['noSpan'] ?? false);
@@ -141,59 +127,34 @@ class EventGeneratorDecorator extends CalendarEventsGenerator
             return;
         }
 
+        $calculator = $this->recurrenceCalculatorFactory->createForEvent($eventModel);
+
+        if (null === $calculator) {
+            return;
+        }
+
         $rangeStartTs = $rangeStart->getTimestamp();
         $rangeEndTs = $rangeEnd->getTimestamp();
+        $occurrences = $calculator->listOccurrencesInRange($rangeStart, $rangeEnd, $recurrenceLimit, true);
 
-        $config = new ArrayTransformerConfig();
+        foreach ($occurrences as $occurrence) {
+            $occurrenceStartTs = $occurrence['start'];
+            $occurrenceEndTs = $occurrence['end'];
 
-        $transformer = new ArrayTransformer($config);
-        $constraint = new BetweenConstraint(
-            (new \DateTimeImmutable('@' . $rangeStartTs))->setTimezone($timezone),
-            (new \DateTimeImmutable('@' . $rangeEndTs))->setTimezone($timezone),
-            true
-        );
-
-        $generated = 0;
-        $originalStartTs = (int)$eventModel->startTime;
-
-        /**
-         * @var \Recurr\Recurrence $recurrence
-         */
-        try {
-            foreach ($transformer->transform($rule, $constraint) as $recurrence) {
-                $occurrenceStart = $recurrence->getStart();
-                $occurrenceEnd = $recurrence->getEnd();
-
-                $occurrenceStartTs = $occurrenceStart->getTimestamp();
-                $occurrenceEndTs = $occurrenceEnd->getTimestamp();
-
-                if ($occurrenceStartTs <= $originalStartTs) {
-                    continue;
-                }
-
-                if (null !== $recurrenceLimit && $generated >= $recurrenceLimit) {
-                    return;
-                }
-
-                ++$generated;
-
-                if ($occurrenceEndTs < $rangeStartTs || $occurrenceStartTs > $rangeEndTs) {
-                    continue;
-                }
-
-                $this->addEvent(
-                    $events,
-                    $eventModel,
-                    $occurrenceStartTs,
-                    $occurrenceEndTs,
-                    $rangeEndTs,
-                    $eventModel->pid,
-                    $noSpan,
-                    recursion: true
-                );
+            if ($occurrenceEndTs < $rangeStartTs || $occurrenceStartTs > $rangeEndTs) {
+                continue;
             }
-        } catch (InvalidWeekday) {
 
+            $this->addEvent(
+                $events,
+                $eventModel,
+                $occurrenceStartTs,
+                $occurrenceEndTs,
+                $rangeEndTs,
+                $eventModel->pid,
+                $noSpan,
+                recursion: true
+            );
         }
     }
 }
