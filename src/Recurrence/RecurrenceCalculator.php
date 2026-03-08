@@ -8,7 +8,11 @@ use Recurr\Exception\InvalidWeekday;
 use Recurr\Rule;
 use Recurr\Transformer\ArrayTransformer;
 use Recurr\Transformer\ArrayTransformerConfig;
+use Recurr\Transformer\Constraint\AfterConstraint;
+use Recurr\Transformer\Constraint\BeforeConstraint;
 use Recurr\Transformer\Constraint\BetweenConstraint;
+use Recurr\Transformer\TextTransformer;
+use Recurr\Transformer\Translator;
 
 final readonly class RecurrenceCalculator
 {
@@ -22,34 +26,35 @@ final readonly class RecurrenceCalculator
     /**
      * @return list<array{start: int, end: int}>
      */
-    public function listOccurrencesInRange(\DateTimeInterface $rangeStart, \DateTimeInterface $rangeEnd, ?int $limit = null, bool $excludeOriginal = true): array
+    public function listOccurrencesInRange(?\DateTimeInterface $rangeStart = null, ?\DateTimeInterface $rangeEnd = null, ?int $limit = null, bool $excludeOriginal = true): array
     {
         if (null !== $limit && $limit <= 0) {
             return [];
         }
 
-        $rangeStartTs = $rangeStart->getTimestamp();
-        $rangeEndTs = $rangeEnd->getTimestamp();
-
-        if ($rangeEndTs < $rangeStartTs) {
-            return [];
+        if ($rangeStart && $rangeEnd) {
+            if ($rangeEnd < $rangeStart) {
+                return [];
+            }
         }
+
+        $constraint = null;
+        if ($rangeStart && $rangeEnd) {
+            $constraint = new BetweenConstraint($rangeStart, $rangeEnd, true);
+        } elseif ($rangeStart && !$rangeEnd) {
+            $constraint = new AfterConstraint($rangeStart, true);
+        } elseif (!$rangeStart && $rangeEnd) {
+            $constraint = new BeforeConstraint($rangeEnd, true);
+        }
+
 
         $config = new ArrayTransformerConfig();
 
         if (null !== $limit && $limit > 0) {
             $config->setVirtualLimit($limit + 1);
-        } else {
-            $config->setVirtualLimit(10000);
         }
 
         $transformer = new ArrayTransformer($config);
-        $constraint = new BetweenConstraint(
-            \DateTimeImmutable::createFromTimestamp($rangeStartTs)->setTimezone($this->timezone),
-            \DateTimeImmutable::createFromTimestamp($rangeEndTs)->setTimezone($this->timezone),
-            true
-        );
-
         $occurrences = [];
 
         try {
@@ -83,7 +88,6 @@ final readonly class RecurrenceCalculator
         $lookupEndTs = $nowTs + 315360000; // 10 years
 
         $config = new ArrayTransformerConfig();
-        $config->setVirtualLimit(10000);
 
         $transformer = new ArrayTransformer($config);
         $constraint = new BetweenConstraint(
@@ -109,5 +113,63 @@ final readonly class RecurrenceCalculator
         }
 
         return null;
+    }
+
+    public function toText(): string
+    {
+        $textTransformer = new TextTransformer(
+            new Translator('de')
+        );
+        return $textTransformer->transform($this->rule);
+    }
+
+    public function toSchemaOrgData(): array
+    {
+        $jsonLd = [
+            '@type' => 'Schedule',
+            'startDate' => $this->rule->getStartDate()->format('Y-m-d'),
+        ];
+
+        if ($this->rule->getUntil()) {
+            $jsonLd['endDate'] = $this->rule->getUntil()->format('Y-m-d');
+        }
+
+        // repeatFrequency als ISO 8601 Duration
+        $interval = $this->rule->getInterval();
+        $freqText = $this->rule->getFreqAsText();
+
+        $jsonLd['repeatFrequency'] = match ($freqText) {
+            'YEARLY' => "P{$interval}Y",
+            'MONTHLY' => "P{$interval}M",
+            'WEEKLY' => "P{$interval}W",
+            'DAILY' => "P{$interval}D",
+            'HOURLY' => "PT{$interval}H",
+            'MINUTELY' => "PT{$interval}M",
+            'SECONDLY' => "PT{$interval}S",
+            default => null,
+        };
+
+        if ($jsonLd['repeatFrequency'] === null) {
+            unset($jsonLd['repeatFrequency']);
+        }
+
+        // Optional: byDay für wöchentliche Wiederholungen
+        $byDay = $this->rule->getByDay();
+        if (!empty($byDay)) {
+            $dayMap = [
+                'MO' => 'Monday', 'TU' => 'Tuesday', 'WE' => 'Wednesday',
+                'TH' => 'Thursday', 'FR' => 'Friday', 'SA' => 'Saturday', 'SU' => 'Sunday',
+            ];
+            $jsonLd['byDay'] = array_map(
+                fn($day) => $dayMap[$day] ?? $day,
+                $byDay
+            );
+        }
+
+        if ($this->rule->getCount()) {
+            $jsonLd['repeatCount'] = $this->rule->getCount();
+        }
+
+        return $jsonLd;
     }
 }

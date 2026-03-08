@@ -125,9 +125,10 @@ final class AreEventReaderController extends AbstractContentElementController
                 }
 
                 $htmlHeadBag->setCanonicalUri($url);
-            } elseif (!$this->cal_keepCanonical) {
-                $htmlHeadBag->setCanonicalUri($this->contentUrlGenerator->generate($eventModel, array(), UrlGeneratorInterface::ABSOLUTE_URL));
             }
+//            elseif (!$this->cal_keepCanonical) {
+//                $htmlHeadBag->setCanonicalUri($this->contentUrlGenerator->generate($eventModel, array(), UrlGeneratorInterface::ABSOLUTE_URL));
+//            }
         }
     }
 
