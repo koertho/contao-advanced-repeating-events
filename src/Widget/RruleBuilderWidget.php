@@ -11,9 +11,6 @@ use Twig\Environment;
 
 final class RruleBuilderWidget extends Widget
 {
-    protected static bool $jsLoaded = false;
-    protected static bool $cssLoaded = false;
-
     protected $blnSubmitInput = true;
     protected $blnForAttribute = true;
     protected $strTemplate = 'be_widget';
@@ -22,24 +19,22 @@ final class RruleBuilderWidget extends Widget
     {
         parent::__construct($arrAttributes);
 
-        if (!self::$jsLoaded) {
-            $GLOBALS['TL_JAVASCRIPT'][] = 'bundles/koerthoadvancedrepeatingevents/backend/rrule-builder.js|static';
-            self::$jsLoaded = true;
-        }
+        $rootDir = System::getContainer()->getParameter('kernel.project_dir');
+        $assetPath = 'bundles/koerthoadvancedrepeatingevents/backend';
+        $cssTimestamp = @filemtime($rootDir. '/' . $assetPath . '/rrule-builder.js');
+        $GLOBALS['TL_JAVASCRIPT']['are_be'] = $assetPath.'/rrule-builder.js|'.$cssTimestamp;
+        $cssTimestamp = @filemtime($rootDir. '/' . $assetPath . '/rrule-builder.css');
+        $GLOBALS['TL_CSS']['are_be'] = $assetPath.'/rrule-builder.css|'.$cssTimestamp;
 
-        if (!self::$cssLoaded) {
-            $GLOBALS['TL_CSS'][] = 'bundles/koerthoadvancedrepeatingevents/backend/rrule-builder.css|static';
-            self::$cssLoaded = true;
-        }
     }
 
     public function generate(): string
     {
         $context = [
-            'id' => StringUtil::specialchars((string) $this->strId),
-            'name' => StringUtil::specialchars((string) $this->strName),
-            'value' => self::specialcharsValue((string) $this->varValue),
-            'class' => $this->strClass ? ' '.StringUtil::specialchars((string) $this->strClass) : '',
+            'id' => StringUtil::specialchars((string)$this->strId),
+            'name' => StringUtil::specialchars((string)$this->strName),
+            'value' => self::specialcharsValue((string)$this->varValue),
+            'class' => $this->strClass ? ' ' . StringUtil::specialchars((string)$this->strClass) : '',
             'attributes' => $this->getAttributes(['readonly', 'required']),
             'required' => $this->mandatory ? ' required' : '',
             'wizard' => $this->wizard,
