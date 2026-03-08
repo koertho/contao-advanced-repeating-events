@@ -14,7 +14,7 @@ return function (ContainerConfigurator $container): void {
 
     $services->load(
         'Koertho\\AdvancedRepeatingEventsBundle\\',
-        '../src/{Controller,EventListener,Recurrence}'
+        '../src/{Command,Controller,EventListener,Recurrence}'
     );
 
     $services->set(EventGeneratorDecorator::class)
