@@ -1,0 +1,4 @@
+FMD:
+  are_event_reader:
+    - "ARE event reader"
+    - "Displays a single event."

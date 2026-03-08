@@ -1,3 +1,5 @@
 <?php
 
-$GLOBALS['BE_FFL']['rruleBuilder'] = \Koertho\AdvancedRepeatingEventsBundle\Widget\RruleBuilderWidget::class;
+use Koertho\AdvancedRepeatingEventsBundle\Widget\RruleBuilderWidget;
+
+$GLOBALS['BE_FFL']['rruleBuilder'] = RruleBuilderWidget::class;
