@@ -16,7 +16,6 @@ use Contao\PageModel;
 use Contao\Template;
 use Koertho\AdvancedRepeatingEventsBundle\Recurrence\RecurrenceCalculatorFactory;
 use Symfony\Component\HttpFoundation\Response;
-use function Symfony\Component\Translation\t;
 
 #[AsFrontendModule(type: self::TYPE, category: 'events', template: 'mod_eventreader')]
 class AreEventReaderController extends ModuleEventReader

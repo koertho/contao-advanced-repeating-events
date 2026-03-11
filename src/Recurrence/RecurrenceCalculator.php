@@ -13,14 +13,19 @@ use Recurr\Transformer\Constraint\BeforeConstraint;
 use Recurr\Transformer\Constraint\BetweenConstraint;
 use Recurr\Transformer\TextTransformer;
 use Recurr\Transformer\Translator;
+use Recurr\Transformer\TranslatorInterface;
 
 final readonly class RecurrenceCalculator
 {
+    /**
+     * @internal Use Factory to create instances
+     */
     public function __construct(
         private Rule          $rule,
         private \DateTimeZone $timezone,
         private int           $originalStartTs,
         private int           $durationInSeconds,
+        private string $lang,
     ) {}
 
     /**
@@ -80,12 +85,17 @@ final readonly class RecurrenceCalculator
     }
 
     /**
+     * @param int $now Unix timestamp. If 0, the current time will be used.
+     * @param bool $hideRunning If true, currently running occurrences will be ignored and the next upcoming occurrence will be returned.
      * @return array{start: int, end: int}|null
      */
-    public function resolveCurrentOrUpcomingOccurrence(int $nowTs, bool $hideRunning = false): ?array
+    public function resolveCurrentOrUpcomingOccurrence(int $now = 0, bool $hideRunning = false): ?array
     {
-        $lookupStartTs = $nowTs - max(0, $this->durationInSeconds) - 1;
-        $lookupEndTs = $nowTs + 315360000; // 10 years
+        if (0 === $now) {
+            $now = time();
+        }
+        $lookupStartTs = $now - max(0, $this->durationInSeconds) - 1;
+        $lookupEndTs = $now + 315360000; // 10 years
 
         $config = new ArrayTransformerConfig();
 
@@ -102,7 +112,7 @@ final readonly class RecurrenceCalculator
                 $endTs = $recurrence->getEnd()->getTimestamp();
                 $comparisonTs = $hideRunning ? $startTs : $endTs;
 
-                if ($comparisonTs < $nowTs) {
+                if ($comparisonTs < $now) {
                     continue;
                 }
 
@@ -115,10 +125,10 @@ final readonly class RecurrenceCalculator
         return null;
     }
 
-    public function toText(): string
+    public function toText(?string $lang = null, ?TranslatorInterface $translator = null): string
     {
         $textTransformer = new TextTransformer(
-            new Translator('de')
+            $translator?: new Translator($lang ?: $this->lang)
         );
         return $textTransformer->transform($this->rule);
     }

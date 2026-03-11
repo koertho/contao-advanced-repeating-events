@@ -7,9 +7,14 @@ namespace Koertho\AdvancedRepeatingEventsBundle\Recurrence;
 use Contao\CalendarEventsModel;
 use Recurr\Exception\InvalidRRule;
 use Recurr\Rule;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 final class RecurrenceCalculatorFactory
 {
+    public function __construct(
+        private readonly TranslatorInterface $translator,
+    ) {}
+
     public function createForEvent(CalendarEventsModel $event): ?RecurrenceCalculator
     {
         if (!$event->areRecurring) {
@@ -35,7 +40,7 @@ final class RecurrenceCalculatorFactory
             return null;
         }
 
-        return new RecurrenceCalculator($rule, $timezone, $startTs, $durationInSeconds);
+        return new RecurrenceCalculator($rule, $timezone, $startTs, $durationInSeconds, $this->translator->getLocale());
     }
 
     private function normalizeRrule(string $raw): ?string

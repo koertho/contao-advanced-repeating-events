@@ -23,16 +23,19 @@ class CalendarIcalBundleListener
         if (!is_string($rrule)) {
             return;
         }
+
+        /** @var CalendarEventsModel $model */
+        $model = $event->calendarEventModel;
+        $model->recurring = false;
+
         try {
             // validate rrule
             new Rule(trim($rrule));
         } catch (InvalidRRule) {
+            $model->save();
+            return;
         }
 
-        /** @var CalendarEventsModel $model */
-        $model = $event->calendarEventModel;
-
-        $model->recurring = false;
         $model->areRecurring = true;
         $model->rrule = $rrule;
         $model->save();

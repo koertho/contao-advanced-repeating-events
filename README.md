@@ -59,6 +59,29 @@ php vendor/bin/contao-console are:migrate-recurrences --dry-run
 
 If `cgoit/contao-calendar-ical-bundle` is installed, imported `RRULE` values are copied into the advanced recurrence fields automatically.
 
+## Advances usage
+
+### Recurrence calculator
+
+You can use the `RecurrenceCalculator` to calculate the occurrences of an event.
+
+```php
+use Koertho\AdvancedRepeatingEventsBundle\Recurrence\RecurrenceCalculatorFactory;
+
+function (RecurrenceCalculatorFactory $factory) {
+    $calculator = $factory->createForEvent($event);
+    
+    $occurrences = $calculator->listOccurrencesInRange(rangeStart: new \DateTime('2024-01-01'), rangeEnd: new \DateTime('2024-12-31'), limit: 12, excludeOriginal: false);
+    // Returns an array of start and end dates like [['start' => 1711922400, 'end' => 1711926000], ...]
+    
+    $next = $calculator->resolveCurrentOrUpcomingOccurrence();
+    // Returns the next occurrence as array with start and end timestamps like ['start' => 1711922400, 'end' => 1711926000]
+    
+    $description = $calculator->toText();
+}
+
+```
+
 ## Notes
 
 - The recurrence logic is based on [`simshaun/recurr`](https://github.com/simshaun/recurr).
