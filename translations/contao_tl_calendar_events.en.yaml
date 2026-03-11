@@ -3,7 +3,7 @@ tl_calendar_events:
     0: "Recurring event"
     1: "Enable recurring-event handling."
   rrule:
-    0: "Recurrence rule (RRULE)"
+    0: "Recurrence rule"
     1: "Configure recurrence options. The RRULE value is generated automatically."
   rrule_builder:
     frequency: "Frequency"
@@ -42,4 +42,4 @@ tl_calendar_events:
     end_until: "On date"
     count: "Count"
     until: "Until"
-    rrule: "Generated RRULE"
+    rrule: "Generated rule (RRULE)"

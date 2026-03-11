@@ -29,6 +29,8 @@ Then update the database schema in the Contao install tool or via console.
 In the backend, you'll find a new field for activating recurrences replacing the old field. 
 After activating it, you'll see the recurrence widget.
 
+![Screenshot Widget](docs/img/widget.png)
+
 In frontend, you can use the normal event list module, but the bundles reader module for output.
 
 

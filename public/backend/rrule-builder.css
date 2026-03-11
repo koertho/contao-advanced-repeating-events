@@ -21,7 +21,7 @@
 }
 
 .tl_rrule_builder__fieldset > legend {
-  font-weight: 600;
+  /*font-weight: 600;*/
   padding: 0 4px;
   color: var(--text, inherit);
 }

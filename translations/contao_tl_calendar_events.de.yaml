@@ -3,7 +3,7 @@ tl_calendar_events:
     0: "Wiederkehrender Termin"
     1: "Die Verwaltung wiederkehrender Termine aktivieren."
   rrule:
-    0: "Wiederholungsregel (RRULE)"
+    0: "Wiederholungsregel"
     1: "Wiederholungsoptionen konfigurieren. Der RRULE-Wert wird automatisch erzeugt."
   rrule_builder:
     frequency: "Frequenz"
@@ -42,4 +42,4 @@ tl_calendar_events:
     end_until: "Am Datum"
     count: "Anzahl"
     until: "Bis"
-    rrule: "Generierte RRULE"
+    rrule: "Generierte Regel (RRULE)"
