@@ -6,6 +6,7 @@ use Contao\Calendar;
 use Contao\CalendarEventsModel;
 use Contao\CoreBundle\DependencyInjection\Attribute\AsFrontendModule;
 use Contao\CoreBundle\Exception\PageNotFoundException;
+use Contao\CoreBundle\String\HtmlAttributes;
 use Contao\Date;
 use Contao\Environment;
 use Contao\Events;
@@ -16,6 +17,7 @@ use Contao\PageModel;
 use Contao\Template;
 use Koertho\AdvancedRepeatingEventsBundle\Recurrence\RecurrenceCalculatorFactory;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 #[AsFrontendModule(type: self::TYPE, category: 'events', template: 'mod_eventreader')]
 class AreEventReaderController extends ModuleEventReader
@@ -26,6 +28,7 @@ class AreEventReaderController extends ModuleEventReader
 
     public function __construct(
         private readonly RecurrenceCalculatorFactory $recurrenceCalculatorFactory,
+        private readonly TranslatorInterface $translator,
     ) {}
 
     public function __invoke(ModuleModel $model, string $section): Response
@@ -65,6 +68,10 @@ class AreEventReaderController extends ModuleEventReader
 
 
         $this->applyRecurrence($eventModel, $template, $this->objModel);
+
+        $this->Template->wrapperAttributes = new HtmlAttributes()
+            ->addClass('mod_eventreader')
+            ->mergeWith($this->Template->wrapperAttributes);
     }
 
     public function parseTemplate(Template $template): void
@@ -103,9 +110,20 @@ class AreEventReaderController extends ModuleEventReader
         $template->time = $strTime;
         $template->datetime = $objEvent->addTime ? date('Y-m-d\TH:i:sP', $intStartTime) : date('Y-m-d', $intStartTime);
         $template->begin = $intStartTime;
-        $template->recurring = $calculator->toText();
         $template->end = $intEndTime;
         $template->class = $objEvent->cssClass ? ' ' . trim($objEvent->cssClass) : '';
+
+        $template->recurring = $this->translator->trans(
+            'MSC.cal_repeat',
+            [
+                $calculator->toText(), // Recurrence pattern
+                '', // until -> provided already by toText()
+                date('Y-m-d\TH:i:sP', $intStartTime),
+                $strDate . ($strTime ? ' ' . $strTime : '')
+            ],
+            'contao_default'
+        );
+
 
         // Add a function to retrieve upcoming dates (see #175)
         $template->getUpcomingDates = function ($count) use ($calculator, $objEvent, $intStartTime, $objPage, $span) {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Koertho\AdvancedRepeatingEventsBundle\Recurrence;
 
 use Recurr\Exception\InvalidWeekday;
+use Recurr\Recurrence;
 use Recurr\Rule;
 use Recurr\Transformer\ArrayTransformer;
 use Recurr\Transformer\ArrayTransformerConfig;
