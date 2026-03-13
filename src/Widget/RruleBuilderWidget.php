@@ -30,6 +30,8 @@ final class RruleBuilderWidget extends Widget
 
     public function generate(): string
     {
+        $timezone = new \DateTimeZone(date_default_timezone_get());
+
         $context = [
             'id' => StringUtil::specialchars((string)$this->strId),
             'name' => StringUtil::specialchars((string)$this->strName),
@@ -37,6 +39,7 @@ final class RruleBuilderWidget extends Widget
             'class' => $this->strClass ? ' ' . StringUtil::specialchars((string)$this->strClass) : '',
             'attributes' => $this->getAttributes(['readonly', 'required']),
             'required' => $this->mandatory ? ' required' : '',
+            'timezone' => StringUtil::specialchars($timezone->getName()),
             'wizard' => $this->wizard,
         ];
 

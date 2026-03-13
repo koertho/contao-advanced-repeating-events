@@ -8,6 +8,14 @@
     constructor(root) {
       this.root = root;
       this.output = root.querySelector("[data-rrule-output]");
+      this.formatters = new Map();
+      this.timeZone = root.dataset.rruleTimezone || "UTC";
+
+      try {
+        new Intl.DateTimeFormat("en-CA", { timeZone: this.timeZone }).format(new Date());
+      } catch (_error) {
+        this.timeZone = "UTC";
+      }
 
       if (!this.output) {
         return;
@@ -268,6 +276,17 @@
      * @param {string} value
      */
     toUntilValue(value) {
+      const dateMatch = value.match(/^(\d{8})$/);
+      if (dateMatch) {
+        const date = dateMatch[1];
+        return `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`;
+      }
+
+      const utcMatch = value.match(/^(\d{8})T(\d{6})Z$/);
+      if (utcMatch) {
+        return this.fromUtcUntilToken(utcMatch[1], utcMatch[2]);
+      }
+
       const match = value.match(/^(\d{8})/);
       if (!match) {
         return "";
@@ -285,7 +304,18 @@
         return "";
       }
 
-      return `${value.replace(/-/g, "")}T235959Z`;
+      const [year, month, day] = value.split("-").map((part) => Number.parseInt(part, 10));
+      const utcDate = this.zonedDateTimeToUtcDate({
+        year,
+        month,
+        day,
+        hour: 23,
+        minute: 59,
+        second: 59,
+      });
+      const parts = this.getDateTimeParts(utcDate, "UTC");
+
+      return `${parts.year}${String(parts.month).padStart(2, "0")}${String(parts.day).padStart(2, "0")}T${String(parts.hour).padStart(2, "0")}${String(parts.minute).padStart(2, "0")}${String(parts.second).padStart(2, "0")}Z`;
     }
 
     /**
@@ -313,6 +343,95 @@
       }
 
       element.classList.toggle("is-hidden", !visible);
+    }
+
+    /**
+     * @param {Date} date
+     * @param {string} timeZone
+     * @returns {{ year: number, month: number, day: number, hour: number, minute: number, second: number }}
+     */
+    getDateTimeParts(date, timeZone) {
+      if (!this.formatters.has(timeZone)) {
+        this.formatters.set(timeZone, new Intl.DateTimeFormat("en-CA", {
+          timeZone,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hourCycle: "h23",
+        }));
+      }
+
+      const formatter = this.formatters.get(timeZone);
+
+      return formatter.formatToParts(date).reduce((parts, item) => {
+        if (item.type !== "literal") {
+          parts[item.type] = Number.parseInt(item.value, 10);
+        }
+
+        return parts;
+      }, {
+        year: 0,
+        month: 0,
+        day: 0,
+        hour: 0,
+        minute: 0,
+        second: 0,
+      });
+    }
+
+    /**
+     * @param {Date} utcDate
+     * @param {string} timeZone
+     * @returns {number}
+     */
+    getTimeZoneOffsetMs(utcDate, timeZone) {
+      const parts = this.getDateTimeParts(utcDate, timeZone);
+      const zonedTimestamp = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+      return zonedTimestamp - utcDate.getTime();
+    }
+
+    /**
+     * @param {{ year: number, month: number, day: number, hour: number, minute: number, second: number }} parts
+     * @returns {Date}
+     */
+    zonedDateTimeToUtcDate(parts) {
+      const baseTimestamp = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+      let timestamp = baseTimestamp;
+
+      for (let iteration = 0; iteration < 4; iteration += 1) {
+        const offset = this.getTimeZoneOffsetMs(new Date(timestamp), this.timeZone);
+        const nextTimestamp = baseTimestamp - offset;
+
+        if (nextTimestamp === timestamp) {
+          break;
+        }
+
+        timestamp = nextTimestamp;
+      }
+
+      return new Date(timestamp);
+    }
+
+    /**
+     * @param {string} datePart
+     * @param {string} timePart
+     * @returns {string}
+     */
+    fromUtcUntilToken(datePart, timePart) {
+      const utcDate = new Date(Date.UTC(
+        Number.parseInt(datePart.slice(0, 4), 10),
+        Number.parseInt(datePart.slice(4, 6), 10) - 1,
+        Number.parseInt(datePart.slice(6, 8), 10),
+        Number.parseInt(timePart.slice(0, 2), 10),
+        Number.parseInt(timePart.slice(2, 4), 10),
+        Number.parseInt(timePart.slice(4, 6), 10),
+      ));
+      const parts = this.getDateTimeParts(utcDate, this.timeZone);
+
+      return `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
     }
   }
 

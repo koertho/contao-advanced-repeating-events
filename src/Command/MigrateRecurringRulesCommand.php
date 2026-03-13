@@ -171,10 +171,23 @@ final class MigrateRecurringRulesCommand extends Command
         $repeatEnd = (int) ($row['repeatEnd'] ?? 0);
 
         if ($repeatEnd > 0) {
-            $parts[] = 'UNTIL='.gmdate('Ymd\THis\Z', $repeatEnd);
+            $parts[] = 'UNTIL='.$this->formatUntilFromLocalEndDate($repeatEnd);
         }
 
         return implode(';', $parts);
+    }
+
+    private function formatUntilFromLocalEndDate(int $timestamp): string
+    {
+        $timezone = new \DateTimeZone(date_default_timezone_get());
+
+        $localEndDate = \DateTimeImmutable::createFromTimestamp($timestamp)
+            ->setTimezone($timezone)
+            ->setTime(23, 59, 59);
+
+        return $localEndDate
+            ->setTimezone(new \DateTimeZone('UTC'))
+            ->format('Ymd\THis\Z');
     }
 
     private function hasRequiredColumns(): bool

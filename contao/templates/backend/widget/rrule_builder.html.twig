@@ -5,7 +5,7 @@
 {% set weekday_options = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'] %}
 {% set end_options = ['never', 'count', 'until'] %}
 
-<div class="tl_rrule_builder" data-rrule-builder>
+<div class="tl_rrule_builder" data-rrule-builder data-rrule-timezone="{{ timezone }}">
   <div class="tl_rrule_builder__grid">
     <div class="widget">
       <label for="ctrl_{{ id }}_freq">{{ 'tl_calendar_events.rrule_builder.frequency'|trans }}</label>
