@@ -8,14 +8,17 @@ use Contao\CalendarEventsModel;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\Date;
 use Koertho\AdvancedRepeatingEventsBundle\Recurrence\RecurrenceCalculatorFactory;
-use Koertho\AdvancedRepeatingEventsBundle\Recurrence\RecurringOccurrenceCache;
+use Symfony\Contracts\Cache\ItemInterface;
+use Symfony\Contracts\Cache\TagAwareCacheInterface;
 
 final readonly class RecurringEventLoader
 {
+    private const int CACHE_TTL = 2592000; // 30 days
+
     public function __construct(
         private ContaoFramework $contaoFramework,
         private RecurrenceCalculatorFactory $recurrenceCalculatorFactory,
-        private RecurringOccurrenceCache $recurringOccurrenceCache,
+        private TagAwareCacheInterface $cache,
     ) {
     }
 
@@ -127,12 +130,14 @@ final readonly class RecurringEventLoader
             return [];
         }
 
-        $occurrences = $this->recurringOccurrenceCache->get(
-            $eventModel,
-            $rangeStart,
-            $rangeEnd,
-            $recurrenceLimit,
-            static fn (): array => $calculator->listOccurrencesInRange($rangeStart, $rangeEnd, $recurrenceLimit, true)
+        $occurrences = $this->cache->get(
+            $this->buildCacheKey($eventModel, $rangeStart, $rangeEnd, $recurrenceLimit),
+            function (ItemInterface $item) use ($eventModel, $calculator, $rangeStart, $rangeEnd, $recurrenceLimit): array {
+                $item->expiresAfter(self::CACHE_TTL);
+                $item->tag($this->buildCacheTag($eventModel));
+
+                return $calculator->listOccurrencesInRange($rangeStart, $rangeEnd, $recurrenceLimit, true);
+            }
         );
 
         return array_map(
@@ -144,5 +149,33 @@ final readonly class RecurringEventLoader
             ],
             $occurrences
         );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function buildCacheTag(CalendarEventsModel $eventModel): array
+    {
+        return ['contao.db.tl_calendar_events.'.(int) $eventModel->id];
+    }
+
+    private function buildCacheKey(
+        CalendarEventsModel $eventModel,
+        \DateTimeInterface $rangeStart,
+        \DateTimeInterface $rangeEnd,
+        ?int $recurrenceLimit,
+    ): string {
+        $payload = [
+            'id' => (int) $eventModel->id,
+            'rrule' => (string) $eventModel->rrule,
+            'startTime' => (int) $eventModel->startTime,
+            'endTime' => (int) $eventModel->endTime,
+            'repeatEnd' => (int) $eventModel->repeatEnd,
+            'rangeStart' => $rangeStart->getTimestamp(),
+            'rangeEnd' => $rangeEnd->getTimestamp(),
+            'recurrenceLimit' => $recurrenceLimit,
+        ];
+
+        return 'are_occurrences_'.hash('sha256', json_encode($payload, \JSON_THROW_ON_ERROR));
     }
 }
