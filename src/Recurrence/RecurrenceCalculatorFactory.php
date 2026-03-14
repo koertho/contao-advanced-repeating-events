@@ -17,19 +17,27 @@ final class RecurrenceCalculatorFactory
 
     public function createForEvent(CalendarEventsModel $event): ?RecurrenceCalculator
     {
-        if (!$event->areRecurring) {
+        return $this->createForRawData(
+            (bool) $event->areRecurring,
+            (string) $event->rrule,
+            (int) $event->startTime,
+            (int) $event->endTime
+        );
+    }
+
+    public function createForRawData(bool $areRecurring, string $rrule, int $startTs, int $endTs): ?RecurrenceCalculator
+    {
+        if (!$areRecurring) {
             return null;
         }
 
-        $normalizedRrule = $this->normalizeRrule((string) $event->rrule);
+        $normalizedRrule = $this->normalizeRrule($rrule);
 
         if (null === $normalizedRrule) {
             return null;
         }
 
         $timezone = new \DateTimeZone((string) date_default_timezone_get());
-        $startTs = (int) $event->startTime;
-        $endTs = (int) $event->endTime;
         $durationInSeconds = max(0, $endTs - $startTs);
         $eventStart = \DateTimeImmutable::createFromTimestamp($startTs)->setTimezone($timezone);
         $eventEnd = \DateTimeImmutable::createFromTimestamp($endTs)->setTimezone($timezone);

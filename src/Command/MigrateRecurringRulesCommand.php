@@ -6,6 +6,7 @@ namespace Koertho\AdvancedRepeatingEventsBundle\Command;
 
 use Contao\StringUtil;
 use Doctrine\DBAL\Connection;
+use Koertho\AdvancedRepeatingEventsBundle\Recurrence\RecurrenceCalculatorFactory;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -21,6 +22,7 @@ final class MigrateRecurringRulesCommand extends Command
 {
     public function __construct(
         private readonly Connection $connection,
+        private readonly RecurrenceCalculatorFactory $recurrenceCalculatorFactory,
     ) {
         parent::__construct();
     }
@@ -54,7 +56,7 @@ final class MigrateRecurringRulesCommand extends Command
 
         $queryBuilder = $this->connection->createQueryBuilder();
         $queryBuilder
-            ->select('id', 'repeatEach', 'repeatEnd', 'recurrences', 'rrule')
+            ->select('id', 'startTime', 'endTime', 'repeatEach', 'repeatEnd', 'recurrences', 'rrule')
             ->from('tl_calendar_events')
             ->where('recurring = 1')
             ->orderBy('id', 'ASC');
@@ -103,6 +105,12 @@ final class MigrateRecurringRulesCommand extends Command
                 [
                     'rrule' => $rrule,
                     'areRecurring' => true,
+                    'repeatEnd' => $this->recurrenceCalculatorFactory->createForRawData(
+                        true,
+                        $rrule,
+                        (int) ($row['startTime'] ?? 0),
+                        (int) ($row['endTime'] ?? 0)
+                    )?->resolveRepeatEnd() ?? 0,
                 ],
                 ['id' => (int) $row['id']]
             );

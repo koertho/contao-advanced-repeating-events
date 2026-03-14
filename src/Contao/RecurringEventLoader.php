@@ -80,7 +80,7 @@ final readonly class RecurringEventLoader
         $eventModelAdapter = $this->contaoFramework->getAdapter(CalendarEventsModel::class);
 
         $rangeOverlap = "(($table.startTime>=$rangeStart AND $table.startTime<=$rangeEnd) OR ($table.endTime>=$rangeStart AND $table.endTime<=$rangeEnd) OR ($table.startTime<=$rangeStart AND $table.endTime>=$rangeEnd))";
-        $advancedRecurring = "($table.areRecurring=1 AND $table.startTime<=$rangeEnd AND $table.rrule IS NOT NULL AND $table.rrule!='')";
+        $advancedRecurring = "($table.areRecurring=1 AND ($table.repeatEnd=0 OR $table.repeatEnd>=$rangeStart) AND $table.startTime<=$rangeEnd AND $table.rrule IS NOT NULL AND $table.rrule!='')";
 
         $columns = [
             "$table.pid IN(".implode(',', $calendarIds).") AND ($rangeOverlap OR $advancedRecurring)",

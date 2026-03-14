@@ -4,6 +4,7 @@ namespace Koertho\AdvancedRepeatingEventsBundle\EventListener;
 
 use Cgoit\ContaoCalendarIcalBundle\Event\AfterImportItemEvent;
 use Koertho\AdvancedRepeatingEventsBundle\Model\CalendarEventsModel;
+use Koertho\AdvancedRepeatingEventsBundle\Recurrence\RecurrenceCalculatorFactory;
 use Recurr\Exception\InvalidRRule;
 use Recurr\Rule;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
@@ -11,6 +12,11 @@ use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 #[AsEventListener]
 class CalendarIcalBundleListener
 {
+    public function __construct(
+        private readonly RecurrenceCalculatorFactory $recurrenceCalculatorFactory,
+    ) {
+    }
+
     public function __invoke(AfterImportItemEvent $event): void
     {
         if (!$event->vevent->getRrule()) {
@@ -32,12 +38,19 @@ class CalendarIcalBundleListener
             // validate rrule
             new Rule(trim($rrule));
         } catch (InvalidRRule) {
+            $model->repeatEnd = 0;
             $model->save();
             return;
         }
 
         $model->areRecurring = true;
         $model->rrule = $rrule;
+        $model->repeatEnd = $this->recurrenceCalculatorFactory->createForRawData(
+            true,
+            $rrule,
+            (int) $model->startTime,
+            (int) $model->endTime
+        )?->resolveRepeatEnd() ?? 0;
         $model->save();
     }
 }

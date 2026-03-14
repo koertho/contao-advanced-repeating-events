@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Koertho\AdvancedRepeatingEventsBundle\Recurrence;
 
 use Recurr\Exception\InvalidWeekday;
-use Recurr\Recurrence;
 use Recurr\Rule;
 use Recurr\Transformer\ArrayTransformer;
 use Recurr\Transformer\ArrayTransformerConfig;
@@ -124,6 +123,43 @@ final readonly class RecurrenceCalculator
         }
 
         return null;
+    }
+
+    /**
+     * @return array{start: int, end: int}|null
+     */
+    public function resolveLastOccurrence(): ?array
+    {
+        if (!$this->rule->getUntil() && !$this->rule->getCount()) {
+            return null;
+        }
+
+        $config = new ArrayTransformerConfig();
+
+        if ($this->rule->getCount()) {
+            $config->setVirtualLimit((int) $this->rule->getCount());
+        }
+
+        $transformer = new ArrayTransformer($config);
+        $lastOccurrence = null;
+
+        try {
+            foreach ($transformer->transform($this->rule) as $recurrence) {
+                $lastOccurrence = [
+                    'start' => $recurrence->getStart()->getTimestamp(),
+                    'end' => $recurrence->getEnd()->getTimestamp(),
+                ];
+            }
+        } catch (InvalidWeekday) {
+            return null;
+        }
+
+        return $lastOccurrence;
+    }
+
+    public function resolveRepeatEnd(): int
+    {
+        return $this->resolveLastOccurrence()['end'] ?? 0;
     }
 
     public function toText(?string $lang = null, ?TranslatorInterface $translator = null): string
