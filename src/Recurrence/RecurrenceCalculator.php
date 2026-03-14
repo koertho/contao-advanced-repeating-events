@@ -159,6 +159,10 @@ final readonly class RecurrenceCalculator
 
     public function resolveRepeatEnd(): int
     {
+        if ($this->rule->getUntil()) {
+            return $this->rule->getUntil()->getTimestamp() + $this->durationInSeconds;
+        }
+
         return $this->resolveLastOccurrence()['end'] ?? 0;
     }
 
