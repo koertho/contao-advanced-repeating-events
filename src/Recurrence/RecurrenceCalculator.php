@@ -21,12 +21,13 @@ final readonly class RecurrenceCalculator
      * @internal Use Factory to create instances
      */
     public function __construct(
-        private Rule          $rule,
+        private Rule $rule,
         private \DateTimeZone $timezone,
-        private int           $originalStartTs,
-        private int           $durationInSeconds,
+        private int $originalStartTs,
+        private int $durationInSeconds,
         private string $lang,
-    ) {}
+    ) {
+    }
 
     /**
      * @return list<array{start: int, end: int}>
@@ -52,7 +53,6 @@ final readonly class RecurrenceCalculator
             $constraint = new BeforeConstraint($rangeEnd, true);
         }
 
-
         $config = new ArrayTransformerConfig();
 
         if (null !== $limit && $limit > 0) {
@@ -71,7 +71,10 @@ final readonly class RecurrenceCalculator
                     continue;
                 }
 
-                $occurrences[] = ['start' => $startTs, 'end' => $endTs];
+                $occurrences[] = [
+                    'start' => $startTs,
+                    'end' => $endTs,
+                ];
 
                 if (null !== $limit && \count($occurrences) >= $limit) {
                     break;
@@ -85,8 +88,9 @@ final readonly class RecurrenceCalculator
     }
 
     /**
-     * @param int $now Unix timestamp. If 0, the current time will be used.
-     * @param bool $hideRunning If true, currently running occurrences will be ignored and the next upcoming occurrence will be returned.
+     * @param int  $now         Unix timestamp. If 0, the current time will be used.
+     * @param bool $hideRunning if true, currently running occurrences will be ignored and the next upcoming occurrence will be returned
+     *
      * @return array{start: int, end: int}|null
      */
     public function resolveCurrentOrUpcomingOccurrence(int $now = 0, bool $hideRunning = false): ?array
@@ -116,7 +120,10 @@ final readonly class RecurrenceCalculator
                     continue;
                 }
 
-                return ['start' => $startTs, 'end' => $endTs];
+                return [
+                    'start' => $startTs,
+                    'end' => $endTs,
+                ];
             }
         } catch (InvalidWeekday) {
             return null;
@@ -165,8 +172,9 @@ final readonly class RecurrenceCalculator
     public function toText(?string $lang = null, ?TranslatorInterface $translator = null): string
     {
         $textTransformer = new TextTransformer(
-            $translator?: new Translator($lang ?: $this->lang)
+            $translator ?: new Translator($lang ?: $this->lang)
         );
+
         return $textTransformer->transform($this->rule);
     }
 
@@ -196,7 +204,7 @@ final readonly class RecurrenceCalculator
             default => null,
         };
 
-        if ($jsonLd['repeatFrequency'] === null) {
+        if (null === $jsonLd['repeatFrequency']) {
             unset($jsonLd['repeatFrequency']);
         }
 
@@ -204,11 +212,16 @@ final readonly class RecurrenceCalculator
         $byDay = $this->rule->getByDay();
         if (!empty($byDay)) {
             $dayMap = [
-                'MO' => 'Monday', 'TU' => 'Tuesday', 'WE' => 'Wednesday',
-                'TH' => 'Thursday', 'FR' => 'Friday', 'SA' => 'Saturday', 'SU' => 'Sunday',
+                'MO' => 'Monday',
+                'TU' => 'Tuesday',
+                'WE' => 'Wednesday',
+                'TH' => 'Thursday',
+                'FR' => 'Friday',
+                'SA' => 'Saturday',
+                'SU' => 'Sunday',
             ];
             $jsonLd['byDay'] = array_map(
-                fn($day) => $dayMap[$day] ?? $day,
+                fn ($day) => $dayMap[$day] ?? $day,
                 $byDay
             );
         }

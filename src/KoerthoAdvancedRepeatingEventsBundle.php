@@ -18,6 +18,4 @@ class KoerthoAdvancedRepeatingEventsBundle extends AbstractBundle
     {
         $container->import('../config/services.php');
     }
-
-
 }

@@ -9,17 +9,13 @@ use Contao\ManagerPlugin\Bundle\Parser\ParserInterface;
 
 class Plugin implements BundlePluginInterface
 {
-
-    /**
-     * @inheritDoc
-     */
     public function getBundles(ParserInterface $parser): array
     {
         return [
             BundleConfig::create(KoerthoAdvancedRepeatingEventsBundle::class)
                 ->setLoadAfter([
                     ContaoCalendarBundle::class,
-                ])
+                ]),
         ];
     }
 }

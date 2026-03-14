@@ -13,7 +13,8 @@ final readonly class RecurrenceCalculatorFactory
 {
     public function __construct(
         private TranslatorInterface $translator,
-    ) {}
+    ) {
+    }
 
     public function createForEvent(CalendarEventsModel $event): ?RecurrenceCalculator
     {

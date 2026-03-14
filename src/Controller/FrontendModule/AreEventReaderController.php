@@ -19,6 +19,9 @@ use Koertho\AdvancedRepeatingEventsBundle\Recurrence\RecurrenceCalculatorFactory
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
+/**
+ * @property Template $Template
+ */
 #[AsFrontendModule(type: self::TYPE, category: 'events', template: 'mod_eventreader')]
 class AreEventReaderController extends ModuleEventReader
 {
@@ -29,7 +32,8 @@ class AreEventReaderController extends ModuleEventReader
     public function __construct(
         private readonly RecurrenceCalculatorFactory $recurrenceCalculatorFactory,
         private readonly TranslatorInterface $translator,
-    ) {}
+    ) {
+    }
 
     public function __invoke(ModuleModel $model, string $section): Response
     {
@@ -46,12 +50,13 @@ class AreEventReaderController extends ModuleEventReader
             $this->cal_calendar
         );
         // The event does not exist (see #33)
-        if ($eventModel === null) {
-            throw new PageNotFoundException('Page not found: ' . Environment::get('uri'));
+        if (null === $eventModel) {
+            throw new PageNotFoundException('Page not found: '.Environment::get('uri'));
         }
 
         if (!$eventModel->areRecurring) {
             parent::compile();
+
             return;
         }
 
@@ -66,7 +71,6 @@ class AreEventReaderController extends ModuleEventReader
         $template = $this->templateCache;
         $this->templateCache = null;
         $eventModel->cssClass = $cssClasses;
-
 
         $this->applyRecurrence($eventModel, $template, $this->objModel);
 
@@ -112,7 +116,7 @@ class AreEventReaderController extends ModuleEventReader
         $template->datetime = $objEvent->addTime ? date('Y-m-d\TH:i:sP', $intStartTime) : date('Y-m-d', $intStartTime);
         $template->begin = $intStartTime;
         $template->end = $intEndTime;
-        $template->class = $objEvent->cssClass ? ' ' . trim($objEvent->cssClass) : '';
+        $template->class = $objEvent->cssClass ? ' '.trim($objEvent->cssClass) : '';
 
         $template->recurring = $this->translator->trans(
             'MSC.cal_repeat',
@@ -120,11 +124,10 @@ class AreEventReaderController extends ModuleEventReader
                 $calculator->toText(), // Recurrence pattern
                 '', // until -> provided already by toText()
                 date('Y-m-d\TH:i:sP', $intStartTime),
-                $strDate . ($strTime ? ' ' . $strTime : '')
+                $strDate.($strTime ? ' '.$strTime : ''),
             ],
             'contao_default'
         );
-
 
         // Add a function to retrieve upcoming dates (see #175)
         $template->getUpcomingDates = function ($count) use ($calculator, $objEvent, $intStartTime, $objPage, $span) {
@@ -142,7 +145,7 @@ class AreEventReaderController extends ModuleEventReader
                     'time' => $strTime,
                     'datetime' => $objEvent->addTime ? date('Ya-m-d\TH:i:sP', $startTime) : date('Y-m-d', $endTime),
                     'begin' => $startTime,
-                    'end' => $endTime
+                    'end' => $endTime,
                 ];
             }
 
@@ -165,7 +168,7 @@ class AreEventReaderController extends ModuleEventReader
                     'time' => $strTime,
                     'datetime' => $objEvent->addTime ? date('Ya-m-d\TH:i:sP', $startTime) : date('Y-m-d', $endTime),
                     'begin' => $startTime,
-                    'end' => $endTime
+                    'end' => $endTime,
                 ];
             }
 
@@ -175,8 +178,7 @@ class AreEventReaderController extends ModuleEventReader
         $template->getSchemaOrgData = static function () use ($objEvent, $template, $calculator): array {
             $jsonLd = Events::getSchemaOrgData($objEvent);
 
-            if ($template->addImage && $template->figure)
-            {
+            if ($template->addImage && $template->figure) {
                 $jsonLd['image'] = $template->figure->getSchemaOrgData();
             }
 
@@ -184,8 +186,6 @@ class AreEventReaderController extends ModuleEventReader
 
             return $jsonLd;
         };
-
-
 
         $this->Template->event = $template->parse();
     }
@@ -195,18 +195,18 @@ class AreEventReaderController extends ModuleEventReader
         $strDate = Date::parse($objPage->dateFormat, $intStartTime);
 
         if ($span > 0) {
-            $strDate = Date::parse($objPage->dateFormat, $intStartTime) . $GLOBALS['TL_LANG']['MSC']['cal_timeSeparator'] . Date::parse($objPage->dateFormat, $intEndTime);
+            $strDate = Date::parse($objPage->dateFormat, $intStartTime).$GLOBALS['TL_LANG']['MSC']['cal_timeSeparator'].Date::parse($objPage->dateFormat, $intEndTime);
         }
 
         $strTime = '';
 
         if ($objEvent->addTime) {
             if ($span > 0) {
-                $strDate = Date::parse($objPage->datimFormat, $intStartTime) . $GLOBALS['TL_LANG']['MSC']['cal_timeSeparator'] . Date::parse($objPage->datimFormat, $intEndTime);
+                $strDate = Date::parse($objPage->datimFormat, $intStartTime).$GLOBALS['TL_LANG']['MSC']['cal_timeSeparator'].Date::parse($objPage->datimFormat, $intEndTime);
             } elseif ($intStartTime == $intEndTime) {
                 $strTime = Date::parse($objPage->timeFormat, $intStartTime);
             } else {
-                $strTime = Date::parse($objPage->timeFormat, $intStartTime) . $GLOBALS['TL_LANG']['MSC']['cal_timeSeparator'] . Date::parse($objPage->timeFormat, $intEndTime);
+                $strTime = Date::parse($objPage->timeFormat, $intStartTime).$GLOBALS['TL_LANG']['MSC']['cal_timeSeparator'].Date::parse($objPage->timeFormat, $intEndTime);
             }
         }
 

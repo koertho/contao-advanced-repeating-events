@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Koertho\AdvancedRepeatingEventsBundle\Command;
 
-use Contao\StringUtil;
 use Contao\CoreBundle\Cache\CacheTagManager;
+use Contao\StringUtil;
 use Doctrine\DBAL\Connection;
 use Koertho\AdvancedRepeatingEventsBundle\Recurrence\RecurrenceCalculatorFactory;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -114,7 +114,9 @@ final class MigrateRecurringRulesCommand extends Command
                         (int) ($row['endTime'] ?? 0)
                     )?->resolveRepeatEnd() ?? 0,
                 ],
-                ['id' => (int) $row['id']]
+                [
+                    'id' => (int) $row['id'],
+                ]
             );
 
             $this->cacheTagManager->invalidateTags(['contao.db.tl_calendar_events.'.(int) $row['id']]);

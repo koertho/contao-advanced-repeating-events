@@ -73,6 +73,7 @@ final readonly class RecurringEventLoader
 
     /**
      * @param list<int> $calendarIds
+     *
      * @return list<CalendarEventsModel>
      */
     private function findCandidateEvents(
@@ -100,7 +101,9 @@ final readonly class RecurringEventLoader
         $time = Date::floorToMinute();
         $columns[] = "$table.published=1 AND ($table.start='' OR $table.start<=$time) AND ($table.stop='' OR $table.stop>$time)";
 
-        $collection = $eventModelAdapter->findBy($columns, [], ['order' => "$table.startTime"]);
+        $collection = $eventModelAdapter->findBy($columns, [], [
+            'order' => "$table.startTime",
+        ]);
 
         if (null === $collection) {
             return [];

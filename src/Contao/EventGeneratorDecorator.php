@@ -18,14 +18,13 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 class EventGeneratorDecorator extends CalendarEventsGenerator
 {
     public function __construct(
-        ContaoFramework     $contaoFramework,
-        PageFinder          $pageFinder,
+        ContaoFramework $contaoFramework,
+        PageFinder $pageFinder,
         ContentUrlGenerator $contentUrlGenerator,
         TranslatorInterface $translator,
         private readonly RecurringEventLoader $recurringEventLoader,
-        ResponseTagger|null $responseTagger = null,
-    )
-    {
+        ?ResponseTagger $responseTagger = null,
+    ) {
         parent::__construct($contaoFramework, $pageFinder, $contentUrlGenerator, $translator, $responseTagger);
     }
 

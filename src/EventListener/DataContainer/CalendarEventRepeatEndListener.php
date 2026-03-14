@@ -46,8 +46,12 @@ final readonly class CalendarEventRepeatEndListener
 
         $this->connection->update(
             'tl_calendar_events',
-            ['repeatEnd' => $repeatEnd],
-            ['id' => (int) $dc->id]
+            [
+                'repeatEnd' => $repeatEnd,
+            ],
+            [
+                'id' => (int) $dc->id,
+            ]
         );
     }
 }

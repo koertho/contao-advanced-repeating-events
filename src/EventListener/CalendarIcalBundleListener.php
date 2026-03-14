@@ -43,6 +43,7 @@ class CalendarIcalBundleListener
             $model->repeatEnd = 0;
             $model->save();
             $this->cacheTagManager->invalidateTagsForModelInstance($model);
+
             return;
         }
 

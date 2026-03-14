@@ -21,11 +21,10 @@ final class RruleBuilderWidget extends Widget
 
         $rootDir = System::getContainer()->getParameter('kernel.project_dir');
         $assetPath = 'bundles/koerthoadvancedrepeatingevents/backend';
-        $cssTimestamp = @filemtime($rootDir. '/' . $assetPath . '/rrule-builder.js');
+        $cssTimestamp = @filemtime($rootDir.'/'.$assetPath.'/rrule-builder.js');
         $GLOBALS['TL_JAVASCRIPT']['are_be'] = $assetPath.'/rrule-builder.js|'.$cssTimestamp;
-        $cssTimestamp = @filemtime($rootDir. '/' . $assetPath . '/rrule-builder.css');
+        $cssTimestamp = @filemtime($rootDir.'/'.$assetPath.'/rrule-builder.css');
         $GLOBALS['TL_CSS']['are_be'] = $assetPath.'/rrule-builder.css|'.$cssTimestamp;
-
     }
 
     public function generate(): string
@@ -33,10 +32,10 @@ final class RruleBuilderWidget extends Widget
         $timezone = new \DateTimeZone(date_default_timezone_get());
 
         $context = [
-            'id' => StringUtil::specialchars((string)$this->strId),
-            'name' => StringUtil::specialchars((string)$this->strName),
-            'value' => self::specialcharsValue((string)$this->varValue),
-            'class' => $this->strClass ? ' ' . StringUtil::specialchars((string)$this->strClass) : '',
+            'id' => StringUtil::specialchars((string) $this->strId),
+            'name' => StringUtil::specialchars((string) $this->strName),
+            'value' => self::specialcharsValue((string) $this->varValue),
+            'class' => $this->strClass ? ' '.StringUtil::specialchars((string) $this->strClass) : '',
             'attributes' => $this->getAttributes(['readonly', 'required']),
             'required' => $this->mandatory ? ' required' : '',
             'timezone' => StringUtil::specialchars($timezone->getName()),

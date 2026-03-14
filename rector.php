@@ -34,7 +34,7 @@ return RectorConfig::configure()
     )
     ->withSets([
         LevelSetList::UP_TO_PHP_84,
-        ContaoLevelSetList::UP_TO_CONTAO_49,
+        ContaoLevelSetList::UP_TO_CONTAO_55,
         ContaoSetList::FQCN,
         ContaoSetList::ANNOTATIONS_TO_ATTRIBUTES,
     ])
