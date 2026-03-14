@@ -9,10 +9,10 @@ use Recurr\Exception\InvalidRRule;
 use Recurr\Rule;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
-final class RecurrenceCalculatorFactory
+final readonly class RecurrenceCalculatorFactory
 {
     public function __construct(
-        private readonly TranslatorInterface $translator,
+        private TranslatorInterface $translator,
     ) {}
 
     public function createForEvent(CalendarEventsModel $event): ?RecurrenceCalculator

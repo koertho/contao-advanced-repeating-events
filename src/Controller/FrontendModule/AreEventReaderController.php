@@ -24,7 +24,7 @@ class AreEventReaderController extends ModuleEventReader
 {
     public const string TYPE = 'are_event_reader';
 
-    private ?Template $templateCache;
+    private ?Template $templateCache = null;
 
     public function __construct(
         private readonly RecurrenceCalculatorFactory $recurrenceCalculatorFactory,
@@ -38,6 +38,7 @@ class AreEventReaderController extends ModuleEventReader
         return new Response($this->generate());
     }
 
+    #[\Override]
     protected function compile()
     {
         $eventModel = CalendarEventsModel::findPublishedByParentAndIdOrAlias(
@@ -104,7 +105,7 @@ class AreEventReaderController extends ModuleEventReader
         }
 
         global $objPage;
-        list($strDate, $strTime) = $this->getDateAndTime($objEvent, $objPage, $intStartTime, $intEndTime, $span);
+        [$strDate, $strTime] = $this->getDateAndTime($objEvent, $objPage, $intStartTime, $intEndTime, $span);
 
         $template->date = $strDate;
         $template->time = $strTime;
@@ -209,6 +210,6 @@ class AreEventReaderController extends ModuleEventReader
             }
         }
 
-        return array($strDate, $strTime);
+        return [$strDate, $strTime];
     }
 }

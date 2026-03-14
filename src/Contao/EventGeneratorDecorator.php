@@ -29,6 +29,7 @@ class EventGeneratorDecorator extends CalendarEventsGenerator
         parent::__construct($contaoFramework, $pageFinder, $contentUrlGenerator, $translator, $responseTagger);
     }
 
+    #[\Override]
     public function getAllEvents(array $calendars, \DateTimeInterface $rangeStart, \DateTimeInterface $rangeEnd, ?bool $featured = null, bool $noSpan = false, ?int $recurrenceLimit = null, ?Module $module = null): array
     {
         if ([] === $calendars) {
@@ -78,6 +79,7 @@ class EventGeneratorDecorator extends CalendarEventsGenerator
         return $events;
     }
 
+    #[\Override]
     public function addEvent(array &$events, CalendarEventsModel $eventModel, int $start, int $end, int $rangeEnd, int $calendar, bool $noSpan, bool $recursion = false): void
     {
         if (!$eventModel->areRecurring) {

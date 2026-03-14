@@ -26,7 +26,7 @@ class CalendarIcalBundleListener
         }
 
         $rrule = $event->vevent->createComponent();
-        preg_match('/^RRULE:(.+)$/mi', $rrule, $matches);
+        preg_match('/^RRULE:(.+)$/mi', (string) $rrule, $matches);
         $rrule = $matches[1] ?? null;
         if (!is_string($rrule)) {
             return;

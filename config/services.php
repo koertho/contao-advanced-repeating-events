@@ -12,10 +12,14 @@ return function (ContainerConfigurator $container): void {
         ->autowire()
         ->autoconfigure();
 
-    $services->load(
-        'Koertho\\AdvancedRepeatingEventsBundle\\',
-        '../src/{Command,Contao,Controller,EventListener,Recurrence}'
-    );
+    $services
+        ->load(
+            'Koertho\\AdvancedRepeatingEventsBundle\\',
+            '../src/{Command,Contao,Controller,EventListener,Recurrence}'
+        )
+        ->exclude([
+            '../src/Recurrence/RecurrenceCalculator'
+        ]);
 
     $services->set(EventGeneratorDecorator::class)
         ->decorate('contao_calendar.generator.calendar_events');

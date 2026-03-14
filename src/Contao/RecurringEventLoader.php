@@ -32,7 +32,7 @@ final readonly class RecurringEventLoader
         ?bool $featured = null,
         ?int $recurrenceLimit = null,
     ): array {
-        $calendarIds = array_values(array_unique(array_filter(array_map('\intval', $calendars))));
+        $calendarIds = array_values(array_unique(array_filter(array_map(\intval(...), $calendars))));
 
         if ([] === $calendarIds) {
             return [];
