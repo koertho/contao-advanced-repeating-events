@@ -8,12 +8,14 @@ use Contao\CalendarEventsModel;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\Date;
 use Koertho\AdvancedRepeatingEventsBundle\Recurrence\RecurrenceCalculatorFactory;
+use Koertho\AdvancedRepeatingEventsBundle\Recurrence\RecurringOccurrenceCache;
 
 final readonly class RecurringEventLoader
 {
     public function __construct(
         private ContaoFramework $contaoFramework,
         private RecurrenceCalculatorFactory $recurrenceCalculatorFactory,
+        private RecurringOccurrenceCache $recurringOccurrenceCache,
     ) {
     }
 
@@ -125,17 +127,22 @@ final readonly class RecurringEventLoader
             return [];
         }
 
-        $occurrences = [];
+        $occurrences = $this->recurringOccurrenceCache->get(
+            $eventModel,
+            $rangeStart,
+            $rangeEnd,
+            $recurrenceLimit,
+            static fn (): array => $calculator->listOccurrencesInRange($rangeStart, $rangeEnd, $recurrenceLimit, true)
+        );
 
-        foreach ($calculator->listOccurrencesInRange($rangeStart, $rangeEnd, $recurrenceLimit, true) as $occurrence) {
-            $occurrences[] = [
+        return array_map(
+            static fn (array $occurrence): array => [
                 'model' => $eventModel,
                 'start' => $occurrence['start'],
                 'end' => $occurrence['end'],
                 'calendar' => (int) $eventModel->pid,
-            ];
-        }
-
-        return $occurrences;
+            ],
+            $occurrences
+        );
     }
 }
