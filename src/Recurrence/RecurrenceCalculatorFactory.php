@@ -16,6 +16,9 @@ final readonly class RecurrenceCalculatorFactory
     ) {
     }
 
+    /**
+     * @param \Koertho\AdvancedRepeatingEventsBundle\Model\CalendarEventsModel $event
+     */
     public function createForEvent(CalendarEventsModel $event): ?RecurrenceCalculator
     {
         return $this->createForRawData(

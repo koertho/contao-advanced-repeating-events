@@ -1,13 +1,11 @@
 parameters:
-  level: 1
+  level: 3
   paths:
     - src
     - contao
-#  universalObjectCratesClasses:
+  universalObjectCratesClasses:
 #    - Contao\Database\Result
 #    - Contao\Model
-#    - Contao\Template
-  ignoreErrors:
-    - '#^Parameter \$event of method Koertho\\AdvancedRepeatingEventsBundle\\EventListener\\CalendarIcalBundleListener\:\:__invoke\(\) has invalid type Cgoit\\ContaoCalendarIcalBundle\\Event\\AfterImportItemEvent\.$#'
+    - Contao\Template
 includes:
   - vendor/phpstan/phpstan-symfony/extension.neon

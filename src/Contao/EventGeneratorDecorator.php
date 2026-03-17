@@ -13,6 +13,7 @@ use Contao\CoreBundle\Routing\PageFinder;
 use Contao\Module;
 use Contao\System;
 use FOS\HttpCache\ResponseTagger;
+use Koertho\AdvancedRepeatingEventsBundle\Recurrence\RecurringEventLoader;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 class EventGeneratorDecorator extends CalendarEventsGenerator
@@ -78,6 +79,9 @@ class EventGeneratorDecorator extends CalendarEventsGenerator
         return $events;
     }
 
+    /**
+     * @param \Koertho\AdvancedRepeatingEventsBundle\Model\CalendarEventsModel $eventModel
+     */
     #[\Override]
     public function addEvent(array &$events, CalendarEventsModel $eventModel, int $start, int $end, int $rangeEnd, int $calendar, bool $noSpan, bool $recursion = false): void
     {

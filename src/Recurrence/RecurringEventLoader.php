@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Koertho\AdvancedRepeatingEventsBundle\Contao;
+namespace Koertho\AdvancedRepeatingEventsBundle\Recurrence;
 
 use Contao\CalendarEventsModel;
 use Contao\CoreBundle\Framework\ContaoFramework;
@@ -16,7 +16,6 @@ final readonly class RecurringEventLoader
     private const int CACHE_TTL = 2592000; // 30 days
 
     public function __construct(
-        private ContaoFramework $contaoFramework,
         private RecurrenceCalculatorFactory $recurrenceCalculatorFactory,
         private TagAwareCacheInterface $cache,
     ) {
@@ -39,6 +38,7 @@ final readonly class RecurringEventLoader
         }
 
         $rangeStart = \DateTimeImmutable::createFromInterface($rangeStart)->setTime(0, 0);
+        /** @var \Koertho\AdvancedRepeatingEventsBundle\Model\CalendarEventsModel[] $candidateModels */
         $candidateModels = $this->findCandidateEvents(
             $calendarIds,
             $rangeStart->getTimestamp(),
@@ -83,7 +83,6 @@ final readonly class RecurringEventLoader
         ?bool $featured = null,
     ): array {
         $table = 'tl_calendar_events';
-        $eventModelAdapter = $this->contaoFramework->getAdapter(CalendarEventsModel::class);
 
         $rangeOverlap = "(($table.startTime>=$rangeStart AND $table.startTime<=$rangeEnd) OR ($table.endTime>=$rangeStart AND $table.endTime<=$rangeEnd) OR ($table.startTime<=$rangeStart AND $table.endTime>=$rangeEnd))";
         $advancedRecurring = "($table.areRecurring=1 AND ($table.repeatEnd=0 OR $table.repeatEnd>=$rangeStart) AND $table.startTime<=$rangeEnd AND $table.rrule IS NOT NULL AND $table.rrule!='')";
@@ -101,7 +100,7 @@ final readonly class RecurringEventLoader
         $time = Date::floorToMinute();
         $columns[] = "$table.published=1 AND ($table.start='' OR $table.start<=$time) AND ($table.stop='' OR $table.stop>$time)";
 
-        $collection = $eventModelAdapter->findBy($columns, [], [
+        $collection = CalendarEventsModel::findBy($columns, [], [
             'order' => "$table.startTime",
         ]);
 
@@ -168,6 +167,9 @@ final readonly class RecurringEventLoader
         \DateTimeInterface $rangeEnd,
         ?int $recurrenceLimit,
     ): string {
+        /**
+         * @var \Koertho\AdvancedRepeatingEventsBundle\Model\CalendarEventsModel $eventModel
+         */
         $payload = [
             'id' => (int) $eventModel->id,
             'rrule' => (string) $eventModel->rrule,

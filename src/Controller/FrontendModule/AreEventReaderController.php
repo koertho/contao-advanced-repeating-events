@@ -45,6 +45,9 @@ class AreEventReaderController extends ModuleEventReader
     #[\Override]
     protected function compile()
     {
+        /**
+         * @var \Koertho\AdvancedRepeatingEventsBundle\Model\CalendarEventsModel|null $eventModel
+         */
         $eventModel = CalendarEventsModel::findPublishedByParentAndIdOrAlias(
             Input::get('auto_item', blnKeepUnusedRouteParameter: true),
             $this->cal_calendar
@@ -91,6 +94,9 @@ class AreEventReaderController extends ModuleEventReader
     private function applyRecurrence(CalendarEventsModel $objEvent, Template $template, ModuleModel $model): void
     {
         $calculator = $this->recurrenceCalculatorFactory->createForEvent($objEvent);
+        /**
+         * @phpstan-ignore property.notFound
+         */
         $occurrence = $calculator?->resolveCurrentOrUpcomingOccurrence(time(), $model->cal_hideRunning);
         if (null === $occurrence) {
             return;
