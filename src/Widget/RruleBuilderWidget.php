@@ -15,18 +15,6 @@ final class RruleBuilderWidget extends Widget
     protected $blnForAttribute = true;
     protected $strTemplate = 'be_widget';
 
-    public function __construct($arrAttributes = null)
-    {
-        parent::__construct($arrAttributes);
-
-        $rootDir = System::getContainer()->getParameter('kernel.project_dir');
-        $assetPath = 'bundles/koerthoadvancedrepeatingevents/backend';
-        $cssTimestamp = @filemtime($rootDir.'/'.$assetPath.'/rrule-builder.js');
-        $GLOBALS['TL_JAVASCRIPT']['are_be'] = $assetPath.'/rrule-builder.js|'.$cssTimestamp;
-        $cssTimestamp = @filemtime($rootDir.'/'.$assetPath.'/rrule-builder.css');
-        $GLOBALS['TL_CSS']['are_be'] = $assetPath.'/rrule-builder.css|'.$cssTimestamp;
-    }
-
     public function generate(): string
     {
         $timezone = new \DateTimeZone(date_default_timezone_get());
