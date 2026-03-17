@@ -54,6 +54,10 @@ class AreEventReaderController extends ModuleEventReader
             throw new PageNotFoundException('Page not found: '.Environment::get('uri'));
         }
 
+        $this->Template->wrapperAttributes = new HtmlAttributes()
+            ->addClass('mod_eventreader')
+            ->mergeWith($this->Template->wrapperAttributes);
+
         if (!$eventModel->areRecurring) {
             parent::compile();
 
@@ -73,10 +77,6 @@ class AreEventReaderController extends ModuleEventReader
         $eventModel->cssClass = $cssClasses;
 
         $this->applyRecurrence($eventModel, $template, $this->objModel);
-
-        $this->Template->wrapperAttributes = new HtmlAttributes()
-            ->addClass('mod_eventreader')
-            ->mergeWith($this->Template->wrapperAttributes);
     }
 
     public function parseTemplate(Template $template): void
