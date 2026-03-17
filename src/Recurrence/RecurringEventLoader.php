@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace Koertho\AdvancedRepeatingEventsBundle\Recurrence;
 
 use Contao\CalendarEventsModel;
-use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\Date;
-use Koertho\AdvancedRepeatingEventsBundle\Recurrence\RecurrenceCalculatorFactory;
 use Symfony\Contracts\Cache\ItemInterface;
 use Symfony\Contracts\Cache\TagAwareCacheInterface;
 
