@@ -24,7 +24,6 @@ $dca['fields']['rrule'] = [
     'eval' => [
         'decodeEntities' => true,
         'tl_class' => 'w50 clr',
-//        'basicEntities' => true,
     ],
-    'sql' => ['type' => 'text', 'default' => ''],
+    'sql' => ['type' => 'text', 'default' => null, 'notnull' => false],
 ];
